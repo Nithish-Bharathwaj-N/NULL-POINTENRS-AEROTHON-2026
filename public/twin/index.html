@@ -955,7 +955,7 @@ new THREE.GLTFLoader().load('./Turbojet.glb', (gltf) => {
 });
 
 // ── UNIFIED DUAL 3D DIGITAL TWIN (OUTER Turbojetdemo.glb vs INTERNAL Turbojet.glb) ──
-const outerGrp = new THREE.Group(); outerGrp.rotation.y = 0;
+const outerGrp = new THREE.Group(); outerGrp.rotation.y = (270 * Math.PI / 180);
 scene.add(outerGrp);
 
 let outerMeshes = [], outerLpRotors = [], outerHpRotors = [];
@@ -963,7 +963,6 @@ let outerMeshes = [], outerLpRotors = [], outerHpRotors = [];
 new THREE.GLTFLoader().load('./Turbojetdemo.glb', (gltf) => {
     const om = gltf.scene;
     om.scale.set(0.6, 0.6, 0.6);
-    om.rotation.y = (270 * Math.PI / 180); // 270 degree offset maps raw X-axis GLTF extent to Z-axis, aligning 100% parallel with Turbojet.glb!
     outerGrp.add(om);
     om.traverse((c) => {
         if (c.isMesh) {
