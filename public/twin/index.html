@@ -950,63 +950,147 @@ new THREE.GLTFLoader().load('./Turbojet.glb', (gltf) => {
 });
 
 // ── 3D WATERMARK & CREDIBILITY MARK: "NULL POINTERS" ENGRAVED INLET SPINNER ──
+// ── 3D WATERMARK & CREDIBILITY MARK: "NULL POINTERS" ENGRAVED INLET SPINNER ──
 function createNullPointersEngravedWatermark() {
     try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 2048;
-        canvas.height = 256;
-        const ctx = canvas.getContext('2d');
+        // 1. FRONT-FACING SPINNER CAP DISC (Visible straight-on from front camera view)
+        const frontCanvas = document.createElement('canvas');
+        frontCanvas.width = 1024;
+        frontCanvas.height = 1024;
+        const ctx = frontCanvas.getContext('2d');
 
-        // Dark metallic titanium background
-        ctx.fillStyle = '#090d16';
-        ctx.fillRect(0, 0, 2048, 256);
+        // Dark metallic disc background
+        ctx.fillStyle = '#060a12';
+        ctx.beginPath();
+        ctx.arc(512, 512, 500, 0, Math.PI * 2);
+        ctx.fill();
 
-        // Engraved metallic borders
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+        // Outer Metallic Gold & Cyan Rings
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 16;
+        ctx.beginPath();
+        ctx.arc(512, 512, 480, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.strokeStyle = '#f59e0b';
         ctx.lineWidth = 8;
-        ctx.strokeRect(12, 12, 2024, 232);
+        ctx.beginPath();
+        ctx.arc(512, 512, 450, 0, Math.PI * 2);
+        ctx.stroke();
 
-        ctx.strokeStyle = 'rgba(255, 183, 0, 0.6)';
-        ctx.lineWidth = 4;
-        ctx.strokeRect(24, 24, 2000, 208);
+        // Inner Spinner Ring
+        ctx.strokeStyle = '#0284c7';
+        ctx.lineWidth = 10;
+        ctx.beginPath();
+        ctx.arc(512, 512, 220, 0, Math.PI * 2);
+        ctx.stroke();
 
-        // Engraved Text "NULL POINTERS" repeated 4 times around the 360° fan hub spinner cone
-        ctx.font = '700 72px "JetBrains Mono", monospace';
+        // CURVED CIRCULAR ENGRAVED TEXT "NULL POINTERS" (Top Arc & Bottom Arc)
+        ctx.save();
+        ctx.translate(512, 512);
+
+        ctx.font = '900 68px "JetBrains Mono", monospace';
         ctx.fillStyle = '#38bdf8';
-        ctx.shadowColor = '#0284c7';
-        ctx.shadowBlur = 18;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 20;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        ctx.fillText('★ NULL POINTERS ★', 256, 128);
-        ctx.fillText('★ NULL POINTERS ★', 768, 128);
-        ctx.fillText('★ NULL POINTERS ★', 1280, 128);
-        ctx.fillText('★ NULL POINTERS ★', 1792, 128);
+        const drawCurvedText = (text, radius, startAngle, endAngle) => {
+            const numChars = text.length;
+            const angleStep = (endAngle - startAngle) / (numChars - 1);
+            for (let i = 0; i < numChars; i++) {
+                const charAngle = startAngle + i * angleStep;
+                ctx.save();
+                ctx.rotate(charAngle);
+                ctx.translate(0, -radius);
+                ctx.fillText(text[i], 0, 0);
+                ctx.restore();
+            }
+        };
 
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.wrapS = THREE.RepeatWrapping;
-        texture.wrapT = THREE.ClampToEdgeWrapping;
+        drawCurvedText("★ NULL POINTERS ★", 330, -Math.PI / 2.2, Math.PI / 2.2);
+        drawCurvedText("★ NULL POINTERS ★", 330, Math.PI - Math.PI / 2.2, Math.PI + Math.PI / 2.2);
 
-        // Cylindrical/Conical Spinner Ring surrounding the front inlet fan hub
-        const ringGeo = new THREE.CylinderGeometry(0.24, 0.28, 0.22, 48, 1, true);
-        const ringMat = new THREE.MeshStandardMaterial({
-            map: texture,
-            metalness: 0.90,
+        // Center Emblem Badge
+        ctx.font = '900 54px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#fbbf24';
+        ctx.shadowColor = '#f59e0b';
+        ctx.shadowBlur = 15;
+        ctx.fillText("HAL · Ω", 0, 0);
+
+        ctx.restore();
+
+        const frontTexture = new THREE.CanvasTexture(frontCanvas);
+
+        // Front Face Disc Mesh facing camera (+Z direction)
+        const frontDiscGeo = new THREE.CircleGeometry(0.38, 64);
+        const frontDiscMat = new THREE.MeshStandardMaterial({
+            map: frontTexture,
+            metalness: 0.85,
             roughness: 0.20,
-            emissive: new THREE.Color(0x0284c7),
-            emissiveIntensity: 0.40,
+            emissive: new THREE.Color(0x38bdf8),
+            emissiveIntensity: 0.80,
+            side: THREE.DoubleSide,
+            transparent: true,
+            depthTest: true
+        });
+
+        const frontDiscMesh = new THREE.Mesh(frontDiscGeo, frontDiscMat);
+        frontDiscMesh.name = 'NULL_POINTERS_Front_Spinner_Cap';
+        frontDiscMesh.position.set(0, 0, 2.05); // Placed directly on front nose cone cap facing front camera
+
+        initPos.set(frontDiscMesh, frontDiscMesh.position.clone());
+        allMeshes.push(frontDiscMesh);
+        lpRotors.push(frontDiscMesh); // Pushed into lpRotors so it rotates 360° with the front fan!
+        eGrp.add(frontDiscMesh);
+
+        // 2. CONICAL WRAP RING (Visible from 3D isometric side angles)
+        const sideCanvas = document.createElement('canvas');
+        sideCanvas.width = 2048;
+        sideCanvas.height = 256;
+        const sCtx = sideCanvas.getContext('2d');
+
+        sCtx.fillStyle = '#060a12';
+        sCtx.fillRect(0, 0, 2048, 256);
+        sCtx.strokeStyle = '#38bdf8';
+        sCtx.lineWidth = 10;
+        sCtx.strokeRect(10, 10, 2028, 236);
+
+        sCtx.font = '900 84px "JetBrains Mono", monospace';
+        sCtx.fillStyle = '#38bdf8';
+        sCtx.shadowColor = '#38bdf8';
+        sCtx.shadowBlur = 22;
+        sCtx.textAlign = 'center';
+        sCtx.textBaseline = 'middle';
+
+        sCtx.fillText('★ NULL POINTERS ★', 256, 128);
+        sCtx.fillText('★ NULL POINTERS ★', 768, 128);
+        sCtx.fillText('★ NULL POINTERS ★', 1280, 128);
+        sCtx.fillText('★ NULL POINTERS ★', 1792, 128);
+
+        const sideTexture = new THREE.CanvasTexture(sideCanvas);
+        sideTexture.wrapS = THREE.RepeatWrapping;
+
+        const sideConeGeo = new THREE.CylinderGeometry(0.32, 0.42, 0.28, 64, 1, true);
+        const sideConeMat = new THREE.MeshStandardMaterial({
+            map: sideTexture,
+            metalness: 0.90,
+            roughness: 0.15,
+            emissive: new THREE.Color(0x38bdf8),
+            emissiveIntensity: 0.60,
             side: THREE.DoubleSide
         });
 
-        const watermarkMesh = new THREE.Mesh(ringGeo, ringMat);
-        watermarkMesh.name = 'NULL_POINTERS_Inlet_Watermark';
-        watermarkMesh.rotation.x = Math.PI / 2;
-        watermarkMesh.position.set(0, 0, 1.82); // Positioned at front inlet fan cone
+        const sideConeMesh = new THREE.Mesh(sideConeGeo, sideConeMat);
+        sideConeMesh.name = 'NULL_POINTERS_Conical_Watermark';
+        sideConeMesh.rotation.x = Math.PI / 2;
+        sideConeMesh.position.set(0, 0, 1.90);
 
-        initPos.set(watermarkMesh, watermarkMesh.position.clone());
-        allMeshes.push(watermarkMesh);
-        lpRotors.push(watermarkMesh); // Pushed into lpRotors so it rotates with the front inlet fan!
-        eGrp.add(watermarkMesh);
+        initPos.set(sideConeMesh, sideConeMesh.position.clone());
+        allMeshes.push(sideConeMesh);
+        lpRotors.push(sideConeMesh);
+        eGrp.add(sideConeMesh);
     } catch(e) {
         console.error("Watermark creation error:", e);
     }
