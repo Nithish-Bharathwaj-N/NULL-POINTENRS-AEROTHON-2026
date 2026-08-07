@@ -1275,6 +1275,23 @@ function predictRow(row: TelemetryRow): { comp: number; comb: number; turb: numb
     return def;
   };
 
+  const compH_given = getVal(['comphealth', 'compressorhealth'], -1);
+  const combH_given = getVal(['combhealth', 'combustorhealth'], -1);
+  const turbH_given = getVal(['turbhealth', 'turbinehealth'], -1);
+  const overallH_given = getVal(['overallhealth'], -1);
+  const thrust_given = getVal(['thrust'], -1);
+
+  // If health values were supplied in input row, use them (normalizing 0-1 vs 0-100%)
+  if (compH_given >= 0) {
+    const comp = compH_given <= 1.0 ? compH_given : compH_given / 100.0;
+    const comb = combH_given >= 0 ? (combH_given <= 1.0 ? combH_given : combH_given / 100.0) : 0.85;
+    const turb = turbH_given >= 0 ? (turbH_given <= 1.0 ? turbH_given : turbH_given / 100.0) : 0.85;
+    const overall = overallH_given >= 0 ? (overallH_given <= 1.0 ? overallH_given : overallH_given / 100.0) : (0.35 * comp + 0.30 * comb + 0.35 * turb);
+    const thrust = thrust_given >= 0 ? thrust_given : 200000;
+    const tsfc = 0.821 / Math.max(overall, 0.1);
+    return { comp, comb, turb, overall, thrust, tsfc };
+  }
+
   const cycle = getVal(['cycle'], 1);
   const rpm = getVal(['rpm', 'shaftspeed'], 12500);
 
@@ -1298,6 +1315,7 @@ function predictRow(row: TelemetryRow): { comp: number; comb: number; turb: numb
     tsfc: tsfc_raw,
   };
 }
+
 
 
 
@@ -1418,12 +1436,30 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
       const p = predictedRows[i];
       const t = groundTruthData[i];
 
-      const trueComp = t.CompressorHealth ?? 1.0;
-      const trueComb = t.CombustorHealth ?? 1.0;
-      const trueTurb = t.TurbineHealth ?? 1.0;
-      const trueOverall = t.OverallHealth ?? 1.0;
-      const trueThrust = t.Thrust_N ?? 78500;
-      const trueTsfc = t.TSFC_g_N_s ?? 0.82;
+      // Extract target values cleanly from ground truth row (normalizing scale 0-1 vs 0-100%)
+      const getTruthVal = (keys: string[], fallback: number): number => {
+        for (const k of Object.keys(t)) {
+          const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+          for (const targetK of keys) {
+            if (cleanK.includes(targetK.toLowerCase().replace(/[^a-z0-9]/g, ''))) {
+              const rawVal = t[k];
+              if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+                const cleaned = String(rawVal).replace(/,/g, '').replace(/%/g, '').replace(/K/gi, '').replace(/N/gi, '').replace(/Pa/gi, '').trim();
+                const num = parseFloat(cleaned);
+                if (!isNaN(num)) return num > 1.0 && num <= 100.0 ? num / 100.0 : num;
+              }
+            }
+          }
+        }
+        return fallback;
+      };
+
+      const trueComp = getTruthVal(['comphealth', 'compressorhealth'], p.predComp);
+      const trueComb = getTruthVal(['combhealth', 'combustorhealth'], p.predComb);
+      const trueTurb = getTruthVal(['turbhealth', 'turbinehealth'], p.predTurb);
+      const trueOverall = getTruthVal(['overallhealth'], p.predOverall);
+      const trueThrust = getTruthVal(['thrust'], p.predThrust);
+      const trueTsfc = getTruthVal(['tsfc'], p.predTSFC);
 
       const errComp = Math.abs(p.predComp - trueComp);
       const errComb = Math.abs(p.predComb - trueComb);
@@ -1431,6 +1467,7 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
       const errOverall = Math.abs(p.predOverall - trueOverall);
       const errThrust = Math.abs(p.predThrust - trueThrust);
       const errTsfc = Math.abs(p.predTSFC - trueTsfc);
+
 
       sumCompErr += errComp;
       sumCombErr += errComb;
