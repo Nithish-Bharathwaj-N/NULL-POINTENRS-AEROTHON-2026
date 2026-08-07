@@ -55,13 +55,13 @@
             .fullscreen-corner-btn { bottom: 128px; transform: scale(0.88); transform-origin: bottom right; }
         }
 
-        /* Unified Edge-to-Edge Aerospace Control Center Dock */
+        /* Unified Control Center Dock */
         .control-dock {
-            position: absolute; bottom: 12px; left: 16px; right: 16px;
-            z-index: 10; display: flex; flex-direction: column; gap: 8px;
+            position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+            z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 8px;
             background: rgba(8, 14, 26, 0.94); border: 1px solid rgba(56, 189, 248, 0.35);
             border-radius: 10px; padding: 10px 16px; backdrop-filter: blur(20px);
-            box-shadow: 0 12px 35px rgba(0,0,0,0.85); pointer-events: auto;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.85); width: max-content; max-width: 95vw;
         }
         .dock-row {
             display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; flex-wrap: nowrap;
@@ -317,70 +317,107 @@
         </div>
     </div>
 
-    <!-- UNIFIED FULL-WIDTH DIGITAL TWIN CONTROL CENTER DOCK -->
+    <!-- MANUAL AEROSPACE THROTTLE QUADRANT -->
+    <div class="throttle-quadrant">
+        <span class="th-title">THROTTLE</span>
+        <div class="th-slider-box">
+            <input type="range" id="throttle-slider" class="th-slider" min="0" max="100" value="0" oninput="manualThrottle(this.value)">
+        </div>
+        <span class="th-val" id="throttle-val">0% IDLE</span>
+    </div>
+
+    <!-- 46-COMPONENT PRECISION DATASHEET INSPECTOR -->
+    <div class="inspector" id="inspector">
+        <div class="sub-tag" id="insp-tag">COMPONENT DATASHEET</div>
+        <h3 id="insp-title">—</h3>
+        <p>Part ID: <span class="v" id="insp-id">—</span></p>
+        <p>Subsystem: <span class="v" id="insp-sub">—</span></p>
+        <p>Material Spec: <span class="v" id="insp-mat">—</span></p>
+        <p>Operating Temp: <span class="v" id="insp-temp">—</span></p>
+        <p>Operating Press: <span class="v" id="insp-press">—</span></p>
+        <p>Stage Pressure Ratio (Π<sub>s</sub>): <span class="v" id="insp-pratio">—</span></p>
+        <p>Larson-Miller Creep: <span class="v" id="insp-creep">—</span></p>
+        <p>Subsystem Health: <span class="v" id="insp-health">—</span></p>
+        <p>Structural Wear: <span class="v" id="insp-wear">—</span></p>
+        <p>Estimated RUL: <span class="v" id="insp-rul">—</span></p>
+    </div>
+
+    <!-- ENHANCED PARTS DIRECTORY DRAWER (46 COMPONENTS) -->
+    <div class="parts-drawer" id="parts-drawer">
+        <div class="pd-header">
+            <div>
+                <div class="pd-title">PARTS EXPLORER DIRECTORY</div>
+                <div style="font-size: 0.58rem; color: #64748b; margin-top: 2px;">HAL TURBOJET COMPONENT DATABASE (46)</div>
+            </div>
+            <button class="ad-close" onclick="togglePartsDrawer()">✕</button>
+        </div>
+        
+        <!-- CATEGORY FILTER TABS -->
+        <div class="pd-tabs">
+            <button class="pd-tab active" onclick="filterPartTab('ALL', this)">ALL (46)</button>
+            <button class="pd-tab" onclick="filterPartTab('INTAKE', this)">INTAKE & FAN</button>
+            <button class="pd-tab" onclick="filterPartTab('COMPRESSOR', this)">COMPRESSOR</button>
+            <button class="pd-tab" onclick="filterPartTab('COMBUSTOR', this)">COMBUSTOR</button>
+            <button class="pd-tab" onclick="filterPartTab('TURBINE', this)">TURBINE</button>
+            <button class="pd-tab" onclick="filterPartTab('SENSOR', this)">SENSORS</button>
+        </div>
+
+        <input type="text" id="pd-search-input" class="pd-search" placeholder="🔍 Search component name, material specification, or stage..." oninput="filterParts(this.value)">
+
+        <div class="parts-list" id="parts-list-container">
+            <!-- Dynamically populated -->
+        </div>
+    </div>
+
+    <!-- UNIFIED DIGITAL TWIN CONTROL CENTER DOCK -->
     <div class="control-dock">
         <!-- ROW 1: DATASET LIFECYCLE SIMULATION -->
-        <div class="dock-row sim-row" style="display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <span class="sim-label">DATASET SIMULATION</span>
-                <select id="engine-select" class="sim-btn" style="background:rgba(15,23,42,0.9);" onchange="selectEngine(this.value)">
-                </select>
-            </div>
-            <div style="display: flex; align-items: center; gap: 12px; flex: 1; max-width: 550px; justify-content: center;">
-                <button id="btn-sim-play" class="sim-btn" onclick="toggleSimPlayback()">▶ PLAY SIM</button>
-                <input type="range" id="sim-cycle-slider" class="sim-slider" style="flex: 1;" min="1" max="300" value="1" oninput="scrubCycle(this.value)">
-            </div>
+        <div class="dock-row sim-row">
+            <span class="sim-label">DATASET SIMULATION</span>
+            <select id="engine-select" class="sim-btn" style="background:rgba(15,23,42,0.9);" onchange="selectEngine(this.value)">
+            </select>
+            <button id="btn-sim-play" class="sim-btn" onclick="toggleSimPlayback()">▶ PLAY SIM</button>
+            <input type="range" id="sim-cycle-slider" class="sim-slider" min="1" max="300" value="1" oninput="scrubCycle(this.value)">
             <span class="sim-val" id="sim-cycle-val">Cycle 1 / 300</span>
         </div>
 
-        <!-- ROW 2: FULL-WIDTH CONTROLS (THROTTLE + ACTIONS + EXPAND) -->
-        <div class="dock-row ctrl-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;">
-            <!-- LEFT WIDGET: EMBEDDED HORIZONTAL THROTTLE -->
-            <div style="display: flex; align-items: center; gap: 8px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 4px 10px; shrink-0;">
-                <span style="font-size: 0.62rem; color: #38bdf8; font-weight: 800; letter-spacing: 1px;">THROTTLE</span>
-                <input type="range" id="throttle-slider" class="th-slider" style="width: 80px; height: 4px; accent-color: #38bdf8; cursor: pointer;" min="0" max="100" value="0" oninput="manualThrottle(this.value)">
-                <span id="throttle-val" style="font-size: 0.65rem; color: #f8fafc; font-weight: 800; min-width: 45px;">0% IDLE</span>
-            </div>
-
-            <!-- CENTER ACTIONS: ENGINE CONTROL BUTTONS -->
-            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: center;">
-                <button class="ctrl-btn start" id="btn-engine-toggle" onclick="toggleEngineState()">▶ START ENGINE</button>
-                <button class="ctrl-btn active" id="btn-cutaway" onclick="toggleCutaway()">CUTAWAY</button>
-                <button class="ctrl-btn" id="btn-exploded" onclick="toggleExploded()">EXPLODE</button>
-                <button class="ctrl-btn" id="btn-rotdir" onclick="toggleRotDir()">⇄ ROT: CCW</button>
-                <button class="ctrl-btn" id="btn-heatmap" onclick="cycleHeatmapMode()">MAP: ALLOY</button>
-                <button class="ctrl-btn" id="btn-audio" onclick="toggleAudio()">🔊 AUDIO</button>
-                <button class="ctrl-btn" id="btn-parts" onclick="togglePartsDrawer()">PARTS DIRECTORY</button>
-                <button class="ctrl-btn" id="btn-analytics" onclick="toggleAnalytics()">ANALYTICS & HEALTH</button>
-                <select id="scenario-select" class="ctrl-select" onchange="injectFailure(this.value)">
-                    <option value="NORMAL">NOMINAL BASELINE</option>
-                    <option value="COMPRESSOR_FOULING">COMPRESSOR FOULING</option>
-                    <option value="COMPRESSOR_SURGE">COMPRESSOR SURGE</option>
-                    <option value="BEARING_WEAR">BEARING WEAR</option>
-                    <option value="HIGH_EGT">HIGH EGT</option>
-                    <option value="FUEL_INJECTOR_CLOGGING">FUEL INJECTOR CLOG</option>
-                    <option value="COMBUSTOR_EFFICIENCY_LOSS">COMBUSTOR LOSS</option>
-                    <option value="OIL_PRESSURE_LOSS">OIL PRESSURE LOSS</option>
-                    <option value="TURBINE_BLADE_EROSION">TURBINE EROSION</option>
-                    <option value="SAND_INGESTION_DESERT">DESERT SAND INGESTION</option>
-                    <option value="COLD_WEATHER_ICING">COLD WEATHER ICING</option>
-                    <option value="FOREIGN_OBJECT_DAMAGE">FOD INGESTION</option>
-                    <option value="TURBINE_CREEP_RUNAWAY">CREEP RUNAWAY</option>
-                    <option value="COMBUSTOR_BURN_THROUGH">COMBUSTOR BURN-THROUGH</option>
-                    <option value="ROTOR_IMBALANCE_RESONANCE">ROTOR RESONANCE</option>
-                    <option value="TBC_COATING_DELAMINATION">TBC DELAMINATION</option>
-                </select>
-            </div>
-
-            <!-- RIGHT WIDGET: EMBEDDED FULLSCREEN / EXPAND BUTTON -->
-            <button class="sim-btn" id="btn-fullscreen" onclick="toggleFullscreen()" title="Toggle Fullscreen Viewport" style="display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: rgba(56, 189, 248, 0.15); border-color: rgba(56, 189, 248, 0.4); shrink-0;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-                </svg>
-                <span>EXPAND ⛶</span>
-            </button>
+        <!-- ROW 2: ENGINE ACTION CONTROLS & DISPLAY MODES -->
+        <div class="dock-row ctrl-row">
+            <button class="ctrl-btn start" id="btn-engine-toggle" onclick="toggleEngineState()">▶ START ENGINE</button>
+            <button class="ctrl-btn active" id="btn-cutaway" onclick="toggleCutaway()">CUTAWAY</button>
+            <button class="ctrl-btn" id="btn-exploded" onclick="toggleExploded()">EXPLODE</button>
+            <button class="ctrl-btn" id="btn-rotdir" onclick="toggleRotDir()">⇄ ROT: CCW</button>
+            <button class="ctrl-btn" id="btn-heatmap" onclick="cycleHeatmapMode()">MAP: ALLOY</button>
+            <button class="ctrl-btn" id="btn-audio" onclick="toggleAudio()">🔊 AUDIO</button>
+            <button class="ctrl-btn" id="btn-parts" onclick="togglePartsDrawer()">PARTS DIRECTORY</button>
+            <button class="ctrl-btn" id="btn-analytics" onclick="toggleAnalytics()">ANALYTICS & HEALTH</button>
+            <select id="scenario-select" class="ctrl-select" onchange="injectFailure(this.value)">
+                <option value="NORMAL">NOMINAL BASELINE</option>
+                <option value="COMPRESSOR_FOULING">COMPRESSOR FOULING</option>
+                <option value="COMPRESSOR_SURGE">COMPRESSOR SURGE</option>
+                <option value="BEARING_WEAR">BEARING WEAR</option>
+                <option value="HIGH_EGT">HIGH EGT</option>
+                <option value="FUEL_INJECTOR_CLOGGING">FUEL INJECTOR CLOG</option>
+                <option value="COMBUSTOR_EFFICIENCY_LOSS">COMBUSTOR LOSS</option>
+                <option value="OIL_PRESSURE_LOSS">OIL PRESSURE LOSS</option>
+                <option value="TURBINE_BLADE_EROSION">TURBINE EROSION</option>
+                <option value="SAND_INGESTION_DESERT">DESERT SAND INGESTION</option>
+                <option value="COLD_WEATHER_ICING">COLD WEATHER ICING</option>
+                <option value="FOREIGN_OBJECT_DAMAGE">FOD INGESTION</option>
+                <option value="TURBINE_CREEP_RUNAWAY">CREEP RUNAWAY</option>
+                <option value="COMBUSTOR_BURN_THROUGH">COMBUSTOR BURN-THROUGH</option>
+                <option value="ROTOR_IMBALANCE_RESONANCE">ROTOR RESONANCE</option>
+                <option value="TBC_COATING_DELAMINATION">TBC DELAMINATION</option>
+            </select>
         </div>
     </div>
+
+    <!-- BOTTOM-RIGHT FLOATING FULLSCREEN SQUARE ICON BUTTON -->
+    <button class="fullscreen-corner-btn" id="btn-fullscreen" onclick="toggleFullscreen()" title="Toggle Fullscreen Viewport">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+        </svg>
+    </button>
 
     <!-- ANALYTICS & HEALTH DASHBOARD DRAWER -->
     <div class="analytics-drawer" id="analytics-drawer" onmouseenter="clearTimeout(analyticsHoverTimer)" onmouseleave="closeAnalyticsOnHover()">
