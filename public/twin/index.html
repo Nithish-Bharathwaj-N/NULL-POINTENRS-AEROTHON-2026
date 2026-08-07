@@ -963,7 +963,7 @@ let outerMeshes = [], outerLpRotors = [], outerHpRotors = [];
 new THREE.GLTFLoader().load('./Turbojetdemo.glb', (gltf) => {
     const om = gltf.scene;
     om.scale.set(0.6, 0.6, 0.6);
-    om.rotation.y = (90 * Math.PI / 180); // +90 degree offset to make exterior airframe 100% parallel with internal engine!
+    om.rotation.y = (270 * Math.PI / 180); // 270 degree offset maps raw X-axis GLTF extent to Z-axis, aligning 100% parallel with Turbojet.glb!
     outerGrp.add(om);
     om.traverse((c) => {
         if (c.isMesh) {
