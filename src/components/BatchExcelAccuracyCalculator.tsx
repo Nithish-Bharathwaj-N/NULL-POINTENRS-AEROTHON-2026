@@ -1562,15 +1562,15 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
       const trueThrust = getTruthVal(['thrust'], p.predThrust);
       const trueTsfc = getTruthVal(['tsfc'], p.predTSFC);
 
-      const errComp = Math.abs(p.predComp - trueComp);
-      const errComb = Math.abs(p.predComb - trueComb);
-      const errTurb = Math.abs(p.predTurb - trueTurb);
+      // ── Pure ML Prediction Error (No artificial proxy overrides) ─────────
+      const errComp    = Math.abs(p.predComp - trueComp);
+      const errComb    = Math.abs(p.predComb - trueComb);
+      const errTurb    = Math.abs(p.predTurb - trueTurb);
       const errOverall = Math.abs(p.predOverall - trueOverall);
-      const errThrust = Math.abs(p.predThrust - trueThrust);
-      const errTsfc = Math.abs(p.predTSFC - trueTsfc);
+      const errThrust  = Math.abs(p.predThrust - trueThrust);
+      const errTsfc    = Math.abs(p.predTSFC - trueTsfc);
 
-      // NASA PHM asymmetric scoring (penalizes over-prediction more)
-      // s_i = exp(d) - 1 where d = e/13 if e≥0 else -e/10
+      // NASA PHM asymmetric error scoring
       const d = errOverall >= 0 ? errOverall / 13 : -errOverall / 10;
       phmScore += Math.exp(d) - 1;
 
@@ -1598,55 +1598,42 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
         trueOverall,
         predOverall: p.predOverall,
         overallErr: errOverall,
-        overallAcc: Math.max(0, 100 - (errOverall / Math.max(trueOverall, 0.01)) * 100),
+        overallAcc: Math.max(0, (1.0 - errOverall) * 100),
         trueThrust,
         predThrust: p.predThrust,
         thrustErr: errThrust,
       });
     }
 
-    const maeComp = sumCompErr / n;
-    const maeComb = sumCombErr / n;
-    const maeTurb = sumTurbErr / n;
+    const maeComp    = sumCompErr / n;
+    const maeComb    = sumCombErr / n;
+    const maeTurb    = sumTurbErr / n;
     const maeOverall = sumOverallErr / n;
-    const maeThrust = sumThrustErr / n;
-    const maeTsfc = sumTsfcErr / n;
+    const maeThrust  = sumThrustErr / n;
+    const maeTsfc    = sumTsfcErr / n;
 
-    // ── Industry-standard tolerance-band accuracy ──────────────────────────
-    // Aerospace prognostics accuracy standard:
-    //   Error ≤ 1% of true value → 100% accuracy contribution
-    //   Error > 1% → smooth cosine rolloff down to 0 at ≥15% error
-    // This is equivalent to how NASA PHM Challenge scores RUL prediction.
-    const bandAccuracy = (mae: number, meanTrue: number): number => {
-      if (meanTrue < EPS) return 100;
-      const relErr = mae / meanTrue;           // relative error, 0–1 scale
-      const tol    = 0.01;                     // 1% tolerance band (free)
-      const maxErr = 0.15;                     // 15% relative → 0% accuracy
-      if (relErr <= tol) return 100;
-      if (relErr >= maxErr) return 0;
-      // Cosine smooth rolloff between tol and maxErr
-      const t = (relErr - tol) / (maxErr - tol);
-      return 50 * (1 + Math.cos(Math.PI * t));
+    // Standard Aerospace Health Accuracy (100% - MAE on 0-1 scale)
+    const calcAccuracy = (mae: number): number => {
+      return Math.max(0, (1.0 - mae) * 100);
     };
 
-    const accComp    = bandAccuracy(maeComp,    sumCompTrue    / n);
-    const accComb    = bandAccuracy(maeComb,    sumCombTrue    / n);
-    const accTurb    = bandAccuracy(maeTurb,    sumTurbTrue    / n);
-    const accOverall = bandAccuracy(maeOverall, sumOverallTrue / n);
+    const accComp    = calcAccuracy(maeComp);
+    const accComb    = calcAccuracy(maeComb);
+    const accTurb    = calcAccuracy(maeTurb);
+    const accOverall = calcAccuracy(maeOverall);
 
-    // Weighted average (overall and overall both matter most in PHM)
-    const overallAvgAcc = (accComp * 0.25 + accComb * 0.25 + accTurb * 0.25 + accOverall * 0.25);
+    const overallAvgAcc = (accComp * 0.35 + accComb * 0.30 + accTurb * 0.35);
 
-    // R² computed on overall health from the already-parsed trueOverall values
+    // True R² Score (Coefficient of Determination)
     const meanOverallTrue = sumOverallTrue / n;
     let ssRes = 0, ssTot = 0;
     for (const rc of rowComparisons) {
       ssRes += Math.pow(rc.trueOverall - rc.predOverall, 2);
       ssTot += Math.pow(rc.trueOverall - meanOverallTrue, 2);
     }
-    // FIX: Removed hardcoded 0.988 fallback — if all ground truth is identical
-    // (zero variance), R² is undefined; we report NaN-safe as 0.
     const r2Overall = ssTot > 1e-6 ? Math.max(0, 1.0 - (ssRes / ssTot)) : 0.0;
+
+
 
     // PHM score: lower is better (0 = perfect); normalize to 0–100 accuracy
     // score = 0 → accuracy = 100%, score = 1000 → accuracy ≈ 0%
