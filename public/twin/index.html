@@ -727,7 +727,7 @@ function animFuel() {
 // ── EXACT REPLICATION OF USER SCREENSHOT COMBUSTION VISUALS ─────────
 const eGrp = new THREE.Group(); eGrp.rotation.y = (270 * Math.PI / 180); scene.add(eGrp);
 const flameGrp = new THREE.Group();
-
+flameGrp.rotation.y = (90 * Math.PI / 180); // Align 100% parallel with internal engine scene m!
 flameGrp.visible = false;
 eGrp.add(flameGrp);
 
