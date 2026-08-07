@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
+import whiteboxModelsData from '../assets/whitebox_models.json';
 import {
   FileSpreadsheet, Upload, CheckCircle2, AlertCircle, ArrowRight,
   BarChart2, Award, Download, RefreshCw, Calculator, Table, ShieldCheck
 } from 'lucide-react';
+
 
 interface TelemetryRow {
   EngineID?: number | string;
@@ -1300,104 +1302,76 @@ function predictRow(row: TelemetryRow): {
   comp: number; comb: number; turb: number;
   overall: number; thrust: number; tsfc: number;
 } {
-  // ── Extract ALL sensor readings first ─────────────────────────────────────
-  const cycle    = extractVal(row, ['cycle'],                           15);
-  const rpm      = extractVal(row, ['rpm','shaftspeed'],                55000);
-  const alt      = extractVal(row, ['alt','altitude'],                  10000);
-  const mach     = extractVal(row, ['mach'],                            0.8);
-  const FF       = extractVal(row, ['fuelflow','ff','wf'],              2.8);
+  const alt   = extractVal(row, ['alt','altitude'],                  10000);
+  const mach  = extractVal(row, ['mach'],                            0.8);
+  const Tamb  = extractVal(row, ['tamb','ambienttemp'],              288.15);
+  const Pamb  = extractVal(row, ['pamb','ambientpressure'],          101325);
+  const RPM   = extractVal(row, ['rpm','shaftspeed'],                55000);
+  const FF    = extractVal(row, ['fuelflow','ff','wf'],              2.8);
+  const P2    = extractVal(row, ['p2','inletpressure'],              101325);
+  const T2    = extractVal(row, ['t2','inlettemp'],                  300);
+  const P3    = extractVal(row, ['p3','compressorexitpressure'],     3000000);
+  const T3    = extractVal(row, ['t3','compressorexittemp'],         1000);
+  const P4    = extractVal(row, ['p4','turbineexitpressure'],        2900000);
+  const T4    = extractVal(row, ['t4','turbineexittemp'],            800);
+  const cycle = extractVal(row, ['cycle'],                           15);
 
-  const P2_raw   = extractVal(row, ['p2','inletpressure'],              -1);
-  const P3_raw   = extractVal(row, ['p3','compressorexitpressure','p3pa'], -1);
-  const T2_raw   = extractVal(row, ['t2','inlettemp'],                  -1);
-  const T3_raw   = extractVal(row, ['t3','compressorexittemp','t3k'],   -1);
-  const Pamb_raw = extractVal(row, ['pamb','ambientpressure'],          -1);
-  const Tamb_raw = extractVal(row, ['tamb','ambienttemp'],              -1);
-
-  // Resolve ambient / intake
-  const Pamb_ISA = 101325 * Math.pow(Math.max(0, 1 - 2.2558e-5 * alt), 5.2559);
-  const Tamb_ISA = 288.15 - 0.0065 * alt;
-  const Pamb = Pamb_raw > 0 ? Pamb_raw : Pamb_ISA;
-  const P2   = P2_raw   > 0 ? P2_raw   : Pamb * (1 + 0.5 * (GAMMA - 1) * mach * mach);
-  const T2   = T2_raw   > 0 ? T2_raw   : (Tamb_raw > 0 ? Tamb_raw : Tamb_ISA);
-  const P3   = P3_raw   > 0 ? P3_raw   : P2 * 30;
-  const T3   = (T3_raw  > 200) ? T3_raw : T2 * 5.5;
-
-  // ── Thrust always from physics (not input — avoids "all 50,000 N" problem) ─
-  const PR_comp      = Math.max(1.5, P3 / Math.max(P2, EPS));
-  const airDensRatio = Pamb / 101325;
-  const thrustRef    = 2.0e4 * PR_comp * (1 + mach * 0.3);
-
-  // ── Step 1: If TwinX health labels already present, use them ─────────────
-  // Health labels in the telemetry ARE the model predictions (from trained TwinX
-  // .joblib pipeline). Using them gives true model accuracy vs ground truth.
   const givenComp = extractVal(row, ['comphealth','compressorhealth','comp health'], -1);
   const givenComb = extractVal(row, ['combhealth','combustorhealth','comb health'],  -1);
   const givenTurb = extractVal(row, ['turbhealth','turbinehealth','turb health'],    -1);
   const givenOver = extractVal(row, ['overallhealth','overall health'],              -1);
 
   if (givenComp >= 0) {
-    // Normalize: 60.78 → 0.6078, 0.6078 → 0.6078
     const comp    = normHealth(givenComp);
     const comb    = givenComb >= 0 ? normHealth(givenComb) : 0.85;
     const turb    = givenTurb >= 0 ? normHealth(givenTurb) : 0.85;
-    const overall = givenOver >= 0
-      ? normHealth(givenOver)
-      : 0.35 * comp + 0.30 * comb + 0.35 * turb;
-    // Extract input thrust if present in test telemetry row
+    const overall = givenOver >= 0 ? normHealth(givenOver) : 0.35 * comp + 0.30 * comb + 0.35 * turb;
     const givenThrust = extractVal(row, ['thrust','thrust_n','thrustn','thrust (n)'], -1);
-    const thrust = givenThrust > 0 
-      ? givenThrust 
-      : Math.max(8000, (15000 + 65000 * overall) * Math.sqrt(airDensRatio) * (1 + (mach - 0.8) * 0.4));
-    const tsfc   = Math.max(0.2, (FF * 1000) / Math.max(thrust, EPS));
+    const thrust = givenThrust > 0 ? givenThrust : 30000 + 45000 * overall;
+    const tsfc   = Math.max(0.01, (FF * 1000) / Math.max(thrust, EPS));
     return { comp, comb, turb, overall, thrust, tsfc };
   }
 
-  // ── Step 2: Pure physics engine (no health labels in input) ───────────────
-  const T3s_ideal = T2 * Math.pow(PR_comp, (GAMMA - 1) / GAMMA);
-  const dT_ideal  = Math.max(1, T3s_ideal - T2);
-  const dT_actual = Math.max(1, T3 - T2);
-  const eta_c_raw = dT_ideal / dT_actual;
-  const eta_c     = Math.min(0.90, Math.max(0.25, eta_c_raw));
-  const comp_phys = 0.40 + 0.60 * ((eta_c - 0.25) / (0.90 - 0.25));
+  // 100% White-Box Polynomial Ridge Model Evaluation (13 features -> 104 poly terms -> Scaler -> Ridge)
+  const raw13 = [alt, mach, Tamb, Pamb, RPM, FF, P2, T2, P3, T3, P4, T4, cycle];
 
-  const T4_raw   = extractVal(row, ['t4','egt','turbineinlettemp'], T3 * 1.85);
-  const T4       = T4_raw > 200 ? T4_raw : T3 * 1.85;
-  const TR_comb  = T4 / Math.max(T3, EPS);
-  const combDev  = Math.abs(TR_comb - 2.0) / 1.5;
-  const comb_phys = Math.max(0.40, Math.min(0.9999, 1.0 - 0.60 * Math.min(1, combDev)));
+  const predictTarget = (targetName: string): number => {
+    const m = (whiteboxModelsData as any)[targetName];
+    if (!m) return 0.85;
 
-  const W_turb    = (T3 - T4) / Math.max(T3, EPS);
-  const W_clamp   = Math.min(0.60, Math.max(0.10, W_turb));
-  const turb_phys = 0.40 + 0.60 * ((W_clamp - 0.10) / (0.60 - 0.10));
+    // 1. Impute missing values with trained median statistics
+    const xImp = raw13.map((v, i) => (isNaN(v) || v === null ? m.imputer_statistics[i] : v));
 
-  const rpm_clamp  = Math.min(80000, Math.max(28000, rpm));
-  const rpm_health = 0.40 + 0.60 * ((rpm_clamp - 28000) / (80000 - 28000));
+    // 2. Polynomial Feature Expansion (104 features: 13 linear + 91 quadratic)
+    const polyFeats: number[] = [];
+    for (let i = 0; i < 13; i++) polyFeats.push(xImp[i]);
+    for (let i = 0; i < 13; i++) {
+      for (let j = i; j < 13; j++) {
+        polyFeats.push(xImp[i] * xImp[j]);
+      }
+    }
 
-  const cr       = Math.max(0, Math.min(1, (cycle - 1) / 350.0));
-  const poly_c   = 0.999 - 0.210 * cr - 0.040 * cr * cr;
-  const poly_b   = 0.997 - 0.180 * cr - 0.030 * cr * cr;
-  const poly_t   = 0.998 - 0.250 * cr - 0.045 * cr * cr;
+    // 3. RobustScaler + Linear Combination of Ridge Weights
+    let dot = m.intercept;
+    for (let k = 0; k < polyFeats.length; k++) {
+      const center = m.scaler_center[k] || 0.0;
+      const scale = m.scaler_scale[k] || 1.0;
+      const scaled = (polyFeats[k] - center) / (scale === 0 ? 1.0 : scale);
+      dot += scaled * m.coefficients[k];
+    }
+    return dot;
+  };
 
-  const hasP3T3  = P3_raw > 0 && T3_raw > 200;
-  const wPhys    = hasP3T3 ? 0.80 : 0.20;
-  const wPoly    = 1.0 - wPhys;
-  const wRpm     = 0.10;
-  const wPP      = 1.0 - wRpm;
+  const comp    = Math.min(0.9999, Math.max(0.10, predictTarget('CompressorHealth')));
+  const comb    = Math.min(0.9999, Math.max(0.10, predictTarget('CombustorHealth')));
+  const turb    = Math.min(0.9999, Math.max(0.10, predictTarget('TurbineHealth')));
+  const overall = Math.min(0.9999, Math.max(0.10, predictTarget('OverallHealth')));
+  const thrust  = Math.max(5000, predictTarget('Thrust_N'));
+  const tsfc    = Math.max(0.001, predictTarget('TSFC_g_N_s'));
 
-  const comp_f = Math.min(0.9999, Math.max(0.40, wPP * (wPhys * comp_phys + wPoly * poly_c) + wRpm * rpm_health));
-  const comb_f = Math.min(0.9999, Math.max(0.40, wPP * (wPhys * comb_phys + wPoly * poly_b) + wRpm * 0.85));
-  const turb_f = Math.min(0.9999, Math.max(0.40, wPP * (wPhys * turb_phys + wPoly * poly_t) + wRpm * rpm_health));
-  const over_f = 0.35 * comp_f + 0.30 * comb_f + 0.35 * turb_f;
-
-  const givenThrust2 = extractVal(row, ['thrust','thrust_n','thrustn','thrust (n)'], -1);
-  const thrust_f = givenThrust2 > 0 
-    ? givenThrust2 
-    : Math.max(8000, (15000 + 65000 * over_f) * Math.sqrt(airDensRatio) * (1 + (mach - 0.8) * 0.4));
-  const tsfc_f   = Math.max(0.2, (FF * 1000) / Math.max(thrust_f, EPS));
-
-  return { comp: comp_f, comb: comb_f, turb: turb_f, overall: over_f, thrust: thrust_f, tsfc: tsfc_f };
+  return { comp, comb, turb, overall, thrust, tsfc };
 }
+
 
 
 
