@@ -975,7 +975,6 @@ new THREE.GLTFLoader().load('./Turbojetdemo.glb', (gltf) => {
                 envMapIntensity: 1.5
             });
             outerMeshes.push(c);
-            const n = c.name;
             // ONLY front fan blades, fan hub, and rotor spools rotate! Outer casing shell remains completely fixed!
             if (n.includes('Object_14') || n.includes('Object_11') || n.includes('Object_6') || n.includes('Object_13') || n.includes('Object_7') || n.includes('Fan') || n.includes('Blade') || n.includes('Hub') || n.includes('Cone')) {
                 outerLpRotors.push(c); // ONLY the front fan & rotors spin!
