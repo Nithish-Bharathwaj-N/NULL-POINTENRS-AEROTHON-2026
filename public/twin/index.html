@@ -134,7 +134,7 @@
 
         /* 4-Stage Workstation Top Deck Overlay (Parts Directory Exploded Mode) */
         .stage-workstation-deck {
-            position: absolute; top: 64px; left: 50%; transform: translateX(-50%); z-index: 45;
+            position: absolute; top: 18px; left: 50%; transform: translateX(-50%); z-index: 15;
             display: flex; gap: 10px; pointer-events: auto; transition: all 0.3s ease;
         }
         .swd-card {
@@ -610,6 +610,24 @@ scene.add(stagePedestalGroup);
 
 const makeStagePedestal = (x, z, colorHex, radius) => {
     const pGroup = new THREE.Group();
+    pGroup.position.set(x, -1.18, z);
+
+    const ringGeo = new THREE.RingGeometry(radius * 0.8, radius, 32);
+    const ringMat = new THREE.MeshBasicMaterial({ color: colorHex, side: THREE.DoubleSide, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending });
+    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+    ringMesh.rotation.x = Math.PI / 2;
+    pGroup.add(ringMesh);
+
+    const outGeo = new THREE.RingGeometry(radius * 1.05, radius * 1.10, 32);
+    const outMat = new THREE.MeshBasicMaterial({ color: colorHex, side: THREE.DoubleSide, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending });
+    const outMesh = new THREE.Mesh(outGeo, outMat);
+    outMesh.rotation.x = Math.PI / 2;
+    pGroup.add(outMesh);
+
+    const beamLight = new THREE.PointLight(colorHex, 1.5, 3.5);
+    beamLight.position.set(0, 0.5, 0);
+    pGroup.add(beamLight);
+
     return pGroup;
 };
 
