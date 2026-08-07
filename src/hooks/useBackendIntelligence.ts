@@ -286,6 +286,16 @@ export function useBackendIntelligence(): IntelligenceState {
           const p3B = rawP3 !== null ? rawP3 : 24.5;
           const vib = rawVib !== null ? rawVib : 0.45;
 
+          const normPct = (val: any, fallback: number) => {
+            if (val === null || val === undefined) return fallback;
+            const n = Number(val);
+            return n <= 1.0 ? n * 100 : n;
+          };
+
+          const compHPct = normPct(compH, 94.0);
+          const combHPct = normPct(combH, 92.5);
+          const turbHPct = normPct(turbH, 91.8);
+
           const updated = store.subsystemStages.map((stg) => {
             let h = stg.health;
             let temp = stg.temp;
@@ -293,32 +303,32 @@ export function useBackendIntelligence(): IntelligenceState {
             let v = stg.vibration;
 
             if (stg.ref === 'fan') {
-              if (compH !== null) h = Number(compH);
+              h = compHPct;
               temp = Number((t2C * 0.4).toFixed(1));
               press = Number(p2B.toFixed(2));
               v = Number((vib * 0.7).toFixed(2));
             } else if (stg.ref === 'lpc') {
-              if (compH !== null) h = Number(compH);
+              h = compHPct;
               temp = Number((t2C * 0.75).toFixed(1));
               press = Number((p2B * 2.5).toFixed(2));
               v = Number((vib * 0.85).toFixed(2));
             } else if (stg.ref === 'hpc') {
-              if (compH !== null) h = Number(compH);
+              h = compHPct;
               temp = Number(t2C.toFixed(1));
               press = Number(p3B.toFixed(1));
               v = Number(vib.toFixed(2));
             } else if (stg.ref === 'combustor') {
-              if (combH !== null) h = Number(combH);
+              h = combHPct;
               temp = Number(t3C.toFixed(1));
               press = Number((p3B * 0.96).toFixed(1));
               v = Number((vib * 1.1).toFixed(2));
             } else if (stg.ref === 'hpt') {
-              if (turbH !== null) h = Number(turbH);
+              h = turbHPct;
               temp = Number((t3C * 0.82).toFixed(1));
               press = Number((p3B * 0.35).toFixed(1));
               v = Number((vib * 1.15).toFixed(2));
             } else if (stg.ref === 'lpt') {
-              if (turbH !== null) h = Number(turbH);
+              h = turbHPct;
               temp = Number(t4C.toFixed(1));
               press = Number((p2B * 2.8).toFixed(2));
               v = Number((vib * 0.95).toFixed(2));
@@ -328,6 +338,7 @@ export function useBackendIntelligence(): IntelligenceState {
             return { ...stg, health: Math.round(h), temp, pressure: press, vibration: v, status, efficiency: Math.round(h) };
           });
           store.updateSubsystems(updated);
+
         }
 
         // ── 2. Push RUL + health index into aiInference ───────────────────────
