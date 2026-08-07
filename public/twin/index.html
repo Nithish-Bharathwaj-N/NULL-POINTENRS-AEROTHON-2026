@@ -242,12 +242,22 @@
     <div id="canvas-container"></div>
 
     <div class="state-hud">
-        <div class="sh-org">IIT INDORE × HAL DIGITAL TWIN</div>
+        <div class="sh-org">IIT INDORE × HAL DIGITAL TWIN · NULL POINTERS</div>
         <div class="sh-title">AEROTWIN Ω</div>
         <div class="sh-label">Engine State</div>
         <div class="sh-value" id="sh-state">COLD ENGINE</div>
         <div class="sh-sub" id="sh-detail">0 RPM · T3 20°C · Cycle 1</div>
         <div class="sh-sub" id="sh-physics" style="margin-top:5px; color:#38bdf8;">ω 0.0 rad/s · τ<sub>net</sub> 0.0 N·m</div>
+    </div>
+
+    <!-- OFFICIAL COPYRIGHT & CREDIBILITY WATERMARK HUD (BOTTOM RIGHT) -->
+    <div style="position: absolute; bottom: 18px; right: 24px; z-index: 30; pointer-events: none; text-align: right; background: rgba(8, 14, 26, 0.85); padding: 8px 14px; border: 1px solid rgba(56, 189, 248, 0.35); border-radius: 6px; backdrop-filter: blur(12px);">
+        <div style="font-size: 0.72rem; font-weight: 700; color: #38bdf8; letter-spacing: 2px; text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);">
+            ★ TEAM NULL POINTERS ★
+        </div>
+        <div style="font-size: 0.58rem; color: #94a3b8; letter-spacing: 1px; margin-top: 2px;">
+            © 2026 AEROTHON 2026 PROGNOSIS TWIN · ALL RIGHTS RESERVED
+        </div>
     </div>
 
     <!-- ENTERPRISE HEALTH HUD HEADER (TOP RIGHT - SPLIT INTO SIX METRICS) -->
@@ -936,7 +946,71 @@ new THREE.GLTFLoader().load('./Turbojet.glb', (gltf) => {
     });
     applyCutaway();
     buildPartsList();
+    createNullPointersEngravedWatermark();
 });
+
+// ── 3D WATERMARK & CREDIBILITY MARK: "NULL POINTERS" ENGRAVED INLET SPINNER ──
+function createNullPointersEngravedWatermark() {
+    try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 2048;
+        canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+
+        // Dark metallic titanium background
+        ctx.fillStyle = '#090d16';
+        ctx.fillRect(0, 0, 2048, 256);
+
+        // Engraved metallic borders
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.7)';
+        ctx.lineWidth = 8;
+        ctx.strokeRect(12, 12, 2024, 232);
+
+        ctx.strokeStyle = 'rgba(255, 183, 0, 0.6)';
+        ctx.lineWidth = 4;
+        ctx.strokeRect(24, 24, 2000, 208);
+
+        // Engraved Text "NULL POINTERS" repeated 4 times around the 360° fan hub spinner cone
+        ctx.font = '700 72px "JetBrains Mono", monospace';
+        ctx.fillStyle = '#38bdf8';
+        ctx.shadowColor = '#0284c7';
+        ctx.shadowBlur = 18;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        ctx.fillText('★ NULL POINTERS ★', 256, 128);
+        ctx.fillText('★ NULL POINTERS ★', 768, 128);
+        ctx.fillText('★ NULL POINTERS ★', 1280, 128);
+        ctx.fillText('★ NULL POINTERS ★', 1792, 128);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+
+        // Cylindrical/Conical Spinner Ring surrounding the front inlet fan hub
+        const ringGeo = new THREE.CylinderGeometry(0.24, 0.28, 0.22, 48, 1, true);
+        const ringMat = new THREE.MeshStandardMaterial({
+            map: texture,
+            metalness: 0.90,
+            roughness: 0.20,
+            emissive: new THREE.Color(0x0284c7),
+            emissiveIntensity: 0.40,
+            side: THREE.DoubleSide
+        });
+
+        const watermarkMesh = new THREE.Mesh(ringGeo, ringMat);
+        watermarkMesh.name = 'NULL_POINTERS_Inlet_Watermark';
+        watermarkMesh.rotation.x = Math.PI / 2;
+        watermarkMesh.position.set(0, 0, 1.82); // Positioned at front inlet fan cone
+
+        initPos.set(watermarkMesh, watermarkMesh.position.clone());
+        allMeshes.push(watermarkMesh);
+        lpRotors.push(watermarkMesh); // Pushed into lpRotors so it rotates with the front inlet fan!
+        eGrp.add(watermarkMesh);
+    } catch(e) {
+        console.error("Watermark creation error:", e);
+    }
+}
 
 // ── HEATMAP OVERLAY SHADERS & COLOR MAPS ──────────────────────────────
 function getHeatmapOverlayColor(mesh) {
