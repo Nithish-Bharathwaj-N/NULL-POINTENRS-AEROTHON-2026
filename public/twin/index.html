@@ -976,8 +976,9 @@ new THREE.GLTFLoader().load('./Turbojetdemo.glb', (gltf) => {
     outerGrp.visible = (E.TwinViewMode === 'OUTER');
 });
 
-E.TwinViewMode = 'OUTER';
-setTwinViewMode('OUTER');
+const savedViewMode = localStorage.getItem('AEROTWIN_VIEWMODE') || 'OUTER';
+E.TwinViewMode = savedViewMode;
+setTwinViewMode(savedViewMode);
 
 function toggleTwinViewMode() {
     setTwinViewMode(E.TwinViewMode === 'OUTER' ? 'INTERNAL' : 'OUTER');
@@ -985,6 +986,7 @@ function toggleTwinViewMode() {
 
 function setTwinViewMode(mode) {
     E.TwinViewMode = mode;
+    try { localStorage.setItem('AEROTWIN_VIEWMODE', mode); } catch(e) {}
     const isOuter = mode === 'OUTER';
 
     outerGrp.visible = isOuter;
