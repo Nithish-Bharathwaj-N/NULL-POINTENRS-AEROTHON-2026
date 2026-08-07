@@ -1503,17 +1503,39 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
   const accuracyReport = useMemo(() => {
     if (!predictedRows.length || !groundTruthData || groundTruthData.length === 0) return null;
 
+    // ── Build keyed ground truth map: (EngineID, Cycle) → row ──────────────
+    // FIX: match by EngineID+Cycle, NOT by array index (order may differ)
+    const gtMap = new Map<string, typeof groundTruthData[0]>();
+    for (const gtRow of groundTruthData) {
+      const getKeyVal = (row: any, keys: string[]): string => {
+        for (const k of Object.keys(row)) {
+          if (keys.some(key => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(key))) {
+            return String(row[k]).replace(/,/g, '').trim();
+          }
+        }
+        return '';
+      };
+      const engKey = getKeyVal(gtRow, ['engineid', 'engid', 'engine']);
+      const cycKey = getKeyVal(gtRow, ['cycle']);
+      if (engKey || cycKey) {
+        gtMap.set(`${engKey}_${cycKey}`, gtRow);
+      }
+    }
+
     const n = Math.min(predictedRows.length, groundTruthData.length);
     let sumCompErr = 0, sumCombErr = 0, sumTurbErr = 0, sumOverallErr = 0, sumThrustErr = 0, sumTsfcErr = 0;
     let sumCompTrue = 0, sumCombTrue = 0, sumTurbTrue = 0, sumOverallTrue = 0;
-    
+    let phmScore = 0;
+
     let compErrors: number[] = [], combErrors: number[] = [], turbErrors: number[] = [], overallErrors: number[] = [];
 
     const rowComparisons = [];
 
     for (let i = 0; i < n; i++) {
       const p = predictedRows[i];
-      const t = groundTruthData[i];
+      // Try keyed lookup first, fall back to positional
+      const gtKey = `${p.engineId}_${p.cycle}`;
+      const t = gtMap.has(gtKey) ? gtMap.get(gtKey)! : groundTruthData[i];
 
       // Extract target values cleanly from ground truth row (normalizing scale 0-1 vs 0-100%)
       const getTruthVal = (keys: string[], fallback: number): number => {
@@ -1547,6 +1569,10 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
       const errThrust = Math.abs(p.predThrust - trueThrust);
       const errTsfc = Math.abs(p.predTSFC - trueTsfc);
 
+      // NASA PHM asymmetric scoring (penalizes over-prediction more)
+      // s_i = exp(d) - 1 where d = e/13 if e≥0 else -e/10
+      const d = errOverall >= 0 ? errOverall / 13 : -errOverall / 10;
+      phmScore += Math.exp(d) - 1;
 
       sumCompErr += errComp;
       sumCombErr += errComb;
@@ -1618,12 +1644,18 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
       ssRes += Math.pow(rc.trueOverall - rc.predOverall, 2);
       ssTot += Math.pow(rc.trueOverall - meanOverallTrue, 2);
     }
-    const r2Overall = ssTot > 1e-6 ? Math.max(0, 1.0 - (ssRes / ssTot)) : 0.988;
+    // FIX: Removed hardcoded 0.988 fallback — if all ground truth is identical
+    // (zero variance), R² is undefined; we report NaN-safe as 0.
+    const r2Overall = ssTot > 1e-6 ? Math.max(0, 1.0 - (ssRes / ssTot)) : 0.0;
 
+    // PHM score: lower is better (0 = perfect); normalize to 0–100 accuracy
+    // score = 0 → accuracy = 100%, score = 1000 → accuracy ≈ 0%
+    const phmAccuracy = Math.max(0, 100 * Math.exp(-phmScore / (n * 5)));
 
     return {
       numRows: n,
       overallAvgAcc: overallAvgAcc.toFixed(2),
+      phmAccuracy: phmAccuracy.toFixed(2),
       r2Score: r2Overall.toFixed(3),
       maeOverall: maeOverall.toFixed(4),
       accComp: accComp.toFixed(2),
