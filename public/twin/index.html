@@ -257,12 +257,7 @@
         </div>
     </div>
 
-    <!-- DUAL 3D DIGITAL TWIN VIEWPORT BANNER (OUTER AIRFRAME SHELL vs INTERNAL ENGINE) -->
-    <div id="twin-viewmode-banner" onclick="toggleTwinViewMode()" style="position: absolute; top: 14px; left: 50%; transform: translateX(-50%); z-index: 50; cursor: pointer; background: rgba(8, 14, 26, 0.92); padding: 8px 18px; border: 1px solid rgba(56, 189, 248, 0.45); border-radius: 20px; backdrop-filter: blur(12px); box-shadow: 0 0 24px rgba(56, 189, 248, 0.35); display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #f8fafc; transition: all 0.25s ease;">
-        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#38bdf8; box-shadow:0 0 8px #38bdf8;"></span>
-        <span>🛩️ AIRFORCE EXTERIOR ENGINE SHELL (Turbojetdemo)</span>
-        <span style="padding: 4px 12px; background: #0284c7; color: #ffffff; border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">ENTER INSIDE ENGINE 🔍</span>
-    </div>
+
 
     <!-- ENTERPRISE HEALTH HUD HEADER (TOP RIGHT - SPLIT INTO SIX METRICS) -->
     <div class="health-hud" id="health-hud" onclick="toggleAnalytics()" title="Click to Expand Full Analytics & Diagnostics">
@@ -955,70 +950,30 @@ new THREE.GLTFLoader().load('./Turbojetdemo.glb', (gltf) => {
             }
             outerMeshes.push(c);
             const n = c.name;
-            // ONLY front fan blades, fan hub, and rotor spools rotate! Outer casing shell remains completely fixed!
             if (n.includes('Object_14') || n.includes('Object_11') || n.includes('Object_6') || n.includes('Object_13') || n.includes('Object_7') || n.includes('Fan') || n.includes('Blade') || n.includes('Hub') || n.includes('Cone')) {
-                outerLpRotors.push(c); // ONLY the front fan & rotors spin!
+                outerLpRotors.push(c);
             }
         }
     });
-    outerGrp.visible = (E.TwinViewMode === 'OUTER');
+    outerGrp.visible = false;
 });
 
-const savedViewMode = localStorage.getItem('AEROTWIN_VIEWMODE') || 'OUTER';
-E.TwinViewMode = savedViewMode;
-setTwinViewMode(savedViewMode, true);
+E.TwinViewMode = 'INTERNAL';
 
-function toggleTwinViewMode() {
-    setTwinViewMode(E.TwinViewMode === 'OUTER' ? 'INTERNAL' : 'OUTER');
-}
+function toggleTwinViewMode() {}
 
 function setTwinViewMode(mode, skipAnim) {
-    const isOuter = mode === 'OUTER';
-    const flashEl = document.getElementById('view-transition-flash');
-    const flashText = document.getElementById('transition-flash-text');
+    E.TwinViewMode = 'INTERNAL';
+    outerGrp.visible = false;
+    eGrp.visible = true;
 
-    const applyState = () => {
-        E.TwinViewMode = mode;
-        try { localStorage.setItem('AEROTWIN_VIEWMODE', mode); } catch(e) {}
-
-        outerGrp.visible = isOuter;
-        eGrp.visible = !isOuter;
-
-        if (typeof flameGrp !== 'undefined') flameGrp.visible = !isOuter && E.FlameOn;
-        if (typeof fuelSpray !== 'undefined') fuelSpray.visible = !isOuter && E.cRPM > 500;
-        if (typeof zones !== 'undefined') {
-            zones.forEach(z => { if (z.ps && z.ps.material) z.ps.material.opacity = !isOuter && E.cRPM > 100 ? 0.45 : 0.0; });
-        }
-
-        const banner = document.getElementById('twin-viewmode-banner');
-        if (banner) {
-            banner.innerHTML = isOuter
-                ? `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#38bdf8; box-shadow:0 0 8px #38bdf8;"></span>
-                   <span>🛩️ AIRFORCE EXTERIOR ENGINE SHELL (Turbojetdemo)</span>
-                   <span style="padding: 4px 12px; background: #0284c7; color: #ffffff; border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">ENTER INSIDE ENGINE 🔍</span>`
-                : `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e;"></span>
-                   <span>🔬 INTERNAL 46-COMPONENT DIGITAL TWIN ACTIVE</span>
-                   <span style="padding: 4px 12px; background: #334155; color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">⬅ BACK TO AIRFORCE EXTERIOR VIEW</span>`;
-        }
-        // Exact 3D camera coordinates & target point preserved seamlessly without resetting!
-    };
-
-    if (skipAnim || !flashEl) {
-        applyState();
-        return;
+    if (typeof flameGrp !== 'undefined') flameGrp.visible = E.FlameOn;
+    if (typeof fuelSpray !== 'undefined') fuelSpray.visible = E.cRPM > 500;
+    if (typeof zones !== 'undefined') {
+        zones.forEach(z => { if (z.ps && z.ps.material) z.ps.material.opacity = E.cRPM > 100 ? 0.45 : 0.0; });
     }
-
-    if (flashText) {
-        flashText.textContent = isOuter ? "🛩️ RESTORING AIRFORCE EXTERIOR ENGINE SHELL..." : "🔬 DIVING INTO INTERNAL 46-COMPONENT DIGITAL TWIN...";
-    }
-    flashEl.style.opacity = '1';
-    setTimeout(() => {
-        applyState();
-        setTimeout(() => {
-            flashEl.style.opacity = '0';
-        }, 150);
-    }, 150);
 }
+setTwinViewMode('INTERNAL', true);
 
 
 
