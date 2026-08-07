@@ -22,6 +22,8 @@ import {
 import { useBackendIntelligence } from '@/hooks/useBackendIntelligence';
 import { useTelemetryStore } from '@/stores/useTelemetryStore';
 import { useMissionStore } from '@/stores/useMissionStore';
+import { BatchExcelAccuracyCalculator } from '@/components/BatchExcelAccuracyCalculator';
+
 
 const getBackend = () => {
   if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
@@ -631,7 +633,11 @@ export const LaymanOverview: React.FC = React.memo(() => {
         </div>
       )}
 
+      {/* ── BATCH EXCEL / CSV EVALUATION & ACCURACY CALCULATOR PROVISION ─────── */}
+      <BatchExcelAccuracyCalculator />
+
       {/* ── TIER 1: 6-CARD RIBBON ─────────────────────────────────────────── */}
+
       <div className="grid grid-cols-6 gap-3 shrink-0">
         {/* 1. Engine Status */}
         <ExplainCard
