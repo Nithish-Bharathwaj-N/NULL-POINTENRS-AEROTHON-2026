@@ -1528,10 +1528,11 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
 
     const n = Math.min(predictedRows.length, groundTruthData.length);
     let sumCompErr = 0, sumCombErr = 0, sumTurbErr = 0, sumOverallErr = 0, sumThrustErr = 0, sumTsfcErr = 0;
-    let sumCompTrue = 0, sumCombTrue = 0, sumTurbTrue = 0, sumOverallTrue = 0;
     let phmScore = 0;
+    const rowComparisons: any[] = [];
 
     // ── Pure Original ML Calculated Values (No Proxy Values or Overrides) ───
+
     for (let i = 0; i < n; i++) {
       const p = predictedRows[i];
       const gtKey = `${p.engineId}_${p.cycle}`;
