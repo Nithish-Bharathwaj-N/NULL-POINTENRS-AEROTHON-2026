@@ -388,8 +388,7 @@
 
         <!-- ROW 2: ENGINE ACTION CONTROLS & DISPLAY MODES -->
         <div class="dock-row ctrl-row">
-            <button class="ctrl-btn start" onclick="startupSequence()">▶ START</button>
-            <button class="ctrl-btn stop" onclick="shutdownSequence()">■ STOP</button>
+            <button class="ctrl-btn start" id="btn-engine-toggle" onclick="toggleEngineState()">▶ START ENGINE</button>
             <button class="ctrl-btn active" id="btn-cutaway" onclick="toggleCutaway()">CUTAWAY</button>
             <button class="ctrl-btn" id="btn-exploded" onclick="toggleExploded()">EXPLODE</button>
             <button class="ctrl-btn" id="btn-rotdir" onclick="toggleRotDir()">⇄ ROT: CCW</button>
@@ -1456,9 +1455,31 @@ const SU = [
     { s:'CRUISE POWER',            rpm:12500, t3:1770, f:3.45, d:0,    flame:true },
 ];
 
+function toggleEngineState() {
+    if (E.IsRunning || E.cRPM > 100) {
+        shutdownSequence();
+    } else {
+        startupSequence();
+    }
+}
+
+function syncEngineToggleButton() {
+    const btn = document.getElementById('btn-engine-toggle');
+    if (!btn) return;
+    const isRunning = E.IsRunning || E.cRPM > 100;
+    if (isRunning) {
+        btn.className = 'ctrl-btn stop';
+        btn.innerHTML = '■ STOP ENGINE';
+    } else {
+        btn.className = 'ctrl-btn start';
+        btn.innerHTML = '▶ START ENGINE';
+    }
+}
+
 function startupSequence() {
     clearSequenceTimer();
     E.IsRunning = true; let i = 0;
+    syncEngineToggleButton();
     try {
         fetch(`${getTwinApiBase()}/engine/start`, {method:'POST'}).catch(() => {});
     } catch(e) {}
@@ -1496,6 +1517,7 @@ const SD = [
 function shutdownSequence() {
     clearSequenceTimer();
     E.IsRunning = false; let i = 0;
+    syncEngineToggleButton();
     try {
         fetch(`${getTwinApiBase()}/engine/stop`, {method:'POST'}).catch(() => {});
     } catch(e) {}
@@ -1830,6 +1852,8 @@ function updateHUD() {
     }
     document.getElementById('sh-physics').innerHTML =
         `ω ${omega.toFixed(1)} rad/s · τ<sub>net</sub> ${torque_net.toFixed(1)} N·m`;
+
+    syncEngineToggleButton();
 }
 
 // ── 46-COMPONENT INTERACTIVE INSPECTOR & CAMERA FOCUS ────────────────
