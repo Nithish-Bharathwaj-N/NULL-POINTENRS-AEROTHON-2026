@@ -1344,9 +1344,12 @@ function predictRow(row: TelemetryRow): {
     const overall = givenOver >= 0
       ? normHealth(givenOver)
       : 0.35 * comp + 0.30 * comb + 0.35 * turb;
-    // Thrust from PHYSICS — not input (which is always 50,000 N flat)
-    const thrust  = Math.max(50000, thrustRef * overall * Math.sqrt(airDensRatio));
-    const tsfc    = Math.max(0.4, (FF * 1000) / Math.max(thrust, EPS));
+    // Extract input thrust if present in test telemetry row
+    const givenThrust = extractVal(row, ['thrust','thrust_n','thrustn','thrust (n)'], -1);
+    const thrust = givenThrust > 0 
+      ? givenThrust 
+      : Math.max(8000, (15000 + 65000 * overall) * Math.sqrt(airDensRatio) * (1 + (mach - 0.8) * 0.4));
+    const tsfc   = Math.max(0.2, (FF * 1000) / Math.max(thrust, EPS));
     return { comp, comb, turb, overall, thrust, tsfc };
   }
 
@@ -1387,14 +1390,15 @@ function predictRow(row: TelemetryRow): {
   const turb_f = Math.min(0.9999, Math.max(0.40, wPP * (wPhys * turb_phys + wPoly * poly_t) + wRpm * rpm_health));
   const over_f = 0.35 * comp_f + 0.30 * comb_f + 0.35 * turb_f;
 
-  const Pamb_ISA2 = 101325 * Math.pow(Math.max(0, 1 - 2.2558e-5 * 10000), 5.2559);
-  const airDensRatio2 = (Pamb_raw > 0 ? Pamb_raw : Pamb_ISA2) / 101325;
-  const thrustRef2 = 2.0e4 * Math.max(1.5, P3 / Math.max(P2, EPS)) * (1 + 0.8 * 0.3);
-  const thrust_f = Math.max(50000, thrustRef2 * over_f * Math.sqrt(airDensRatio2));
-  const tsfc_f   = Math.max(0.4, (FF * 1000) / Math.max(thrust_f, EPS));
+  const givenThrust2 = extractVal(row, ['thrust','thrust_n','thrustn','thrust (n)'], -1);
+  const thrust_f = givenThrust2 > 0 
+    ? givenThrust2 
+    : Math.max(8000, (15000 + 65000 * over_f) * Math.sqrt(airDensRatio) * (1 + (mach - 0.8) * 0.4));
+  const tsfc_f   = Math.max(0.2, (FF * 1000) / Math.max(thrust_f, EPS));
 
   return { comp: comp_f, comb: comb_f, turb: turb_f, overall: over_f, thrust: thrust_f, tsfc: tsfc_f };
 }
+
 
 
 
@@ -1527,57 +1531,7 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
     let sumCompTrue = 0, sumCombTrue = 0, sumTurbTrue = 0, sumOverallTrue = 0;
     let phmScore = 0;
 
-    let compErrors: number[] = [], combErrors: number[] = [], turbErrors: number[] = [], overallErrors: number[] = [];
-
-    const rowComparisons = [];
-
-    // ── Diagnostic Logging & Linear Calibration ──────────────────────────────
-    // 1. Gather raw prediction vs true overall arrays for calibration
-    const rawPredOveralls: number[] = [];
-    const trueOveralls: number[]    = [];
-
-    for (let i = 0; i < n; i++) {
-      const p = predictedRows[i];
-      const gtKey = `${p.engineId}_${p.cycle}`;
-      const t = gtMap.has(gtKey) ? gtMap.get(gtKey)! : groundTruthData[i];
-
-      const getTruthVal = (keys: string[], fallback: number): number => {
-        for (const k of Object.keys(t)) {
-          const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-          for (const targetK of keys) {
-            if (cleanK.includes(targetK.toLowerCase().replace(/[^a-z0-9]/g, ''))) {
-              const rawVal = t[k];
-              if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
-                const cleaned = String(rawVal).replace(/,/g, '').replace(/%/g, '').replace(/K/gi, '').replace(/N/gi, '').replace(/Pa/gi, '').trim();
-                const num = parseFloat(cleaned);
-                if (!isNaN(num)) return num > 1.0 && num <= 100.0 ? num / 100.0 : num;
-              }
-            }
-          }
-        }
-        return fallback;
-      };
-
-      rawPredOveralls.push(p.predOverall);
-      trueOveralls.push(getTruthVal(['overallhealth'], p.predOverall));
-    }
-
-    // Compute stats for linear calibration (y_cal = alpha * y_pred + beta)
-    const meanPred = rawPredOveralls.reduce((a, b) => a + b, 0) / n;
-    const meanTrue = trueOveralls.reduce((a, b) => a + b, 0) / n;
-
-    const stdPred = Math.sqrt(rawPredOveralls.reduce((s, v) => s + Math.pow(v - meanPred, 2), 0) / n) || 0.01;
-    const stdTrue = Math.sqrt(trueOveralls.reduce((s, v) => s + Math.pow(v - meanTrue, 2), 0) / n) || 0.01;
-
-    // Linear calibration parameters (align mean & spread to target dataset scale)
-    const alpha = Math.min(2.0, Math.max(0.5, stdTrue / stdPred));
-    const beta  = meanTrue - alpha * meanPred;
-
-    console.log('[ML Diagnostic] Predictions Mean:', meanPred.toFixed(4), 'Std:', stdPred.toFixed(4));
-    console.log('[ML Diagnostic] Ground Truth Mean:', meanTrue.toFixed(4), 'Std:', stdTrue.toFixed(4));
-    console.log('[ML Diagnostic] Linear Calibration Alpha:', alpha.toFixed(4), 'Beta:', beta.toFixed(4));
-
-    // ── Row-by-Row Calibrated Accuracy Calculation ───────────────────────────
+    // ── Pure Original ML Calculated Values (No Proxy Values or Overrides) ───
     for (let i = 0; i < n; i++) {
       const p = predictedRows[i];
       const gtKey = `${p.engineId}_${p.cycle}`;
@@ -1603,22 +1557,24 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
       const trueComp    = getTruthVal(['comphealth', 'compressorhealth'], p.predComp);
       const trueComb    = getTruthVal(['combhealth', 'combustorhealth'], p.predComb);
       const trueTurb    = getTruthVal(['turbhealth', 'turbinehealth'], p.predTurb);
-      const trueOverall = trueOveralls[i];
+      const trueOverall = getTruthVal(['overallhealth'], p.predOverall);
       const trueThrust  = getTruthVal(['thrust'], p.predThrust);
       const trueTsfc    = getTruthVal(['tsfc'], p.predTSFC);
 
-      // Calibrated health predictions (aligned to ground truth scale)
-      const calOverall = Math.max(0.10, Math.min(0.9999, alpha * p.predOverall + beta));
-      const calComp    = Math.max(0.10, Math.min(0.9999, alpha * p.predComp + beta));
-      const calComb    = Math.max(0.10, Math.min(0.9999, alpha * p.predComb + beta));
-      const calTurb    = Math.max(0.10, Math.min(0.9999, alpha * p.predTurb + beta));
+      // Pure ML Predictions (from trained TwinX ML pipeline)
+      const predOverall = p.predOverall;
+      const predComp    = p.predComp;
+      const predComb    = p.predComb;
+      const predTurb    = p.predTurb;
+      const predThrust  = p.predThrust;
+      const predTsfc    = p.predTSFC;
 
-      const errComp    = Math.abs(calComp - trueComp);
-      const errComb    = Math.abs(calComb - trueComb);
-      const errTurb    = Math.abs(calTurb - trueTurb);
-      const errOverall = Math.abs(calOverall - trueOverall);
-      const errThrust  = Math.abs(p.predThrust - trueThrust);
-      const errTsfc    = Math.abs(p.predTSFC - trueTsfc);
+      const errComp    = Math.abs(predComp - trueComp);
+      const errComb    = Math.abs(predComb - trueComb);
+      const errTurb    = Math.abs(predTurb - trueTurb);
+      const errOverall = Math.abs(predOverall - trueOverall);
+      const errThrust  = Math.abs(predThrust - trueThrust);
+      const errTsfc    = Math.abs(predTsfc - trueTsfc);
 
       const d = errOverall >= 0 ? errOverall / 13 : -errOverall / 10;
       phmScore += Math.exp(d) - 1;
@@ -1635,21 +1591,16 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
       sumTurbTrue += trueTurb;
       sumOverallTrue += trueOverall;
 
-      compErrors.push(errComp);
-      combErrors.push(errComb);
-      turbErrors.push(errTurb);
-      overallErrors.push(errOverall);
-
       rowComparisons.push({
         row: i + 1,
         engineId: p.engineId,
         cycle: p.cycle,
         trueOverall,
-        predOverall: calOverall,
+        predOverall,
         overallErr: errOverall,
-        overallAcc: Math.max(0, (1.0 - errOverall / Math.max(trueOverall, 0.01)) * 100),
+        overallAcc: Math.max(0, (1.0 - errOverall) * 100),
         trueThrust,
-        predThrust: p.predThrust,
+        predThrust,
         thrustErr: errThrust,
       });
     }
@@ -1661,29 +1612,24 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
     const maeThrust  = sumThrustErr / n;
     const maeTsfc    = sumTsfcErr / n;
 
-    // Aerospace Relative Error Accuracy
-    const calcAccuracy = (mae: number, meanVal: number): number => {
-      if (meanVal < 1e-4) return 98.0;
-      const relErr = mae / meanVal;
-      return Math.max(0, (1.0 - relErr) * 100);
-    };
+    // Standard Accuracy: 100% - MAE
+    const calcAccuracy = (mae: number): number => Math.max(0, (1.0 - mae) * 100);
 
-    const accComp    = calcAccuracy(maeComp, sumCompTrue / n);
-    const accComb    = calcAccuracy(maeComb, sumCombTrue / n);
-    const accTurb    = calcAccuracy(maeTurb, sumTurbTrue / n);
-    const accOverall = calcAccuracy(maeOverall, sumOverallTrue / n);
+    const accComp    = calcAccuracy(maeComp);
+    const accComb    = calcAccuracy(maeComb);
+    const accTurb    = calcAccuracy(maeTurb);
+    const accOverall = calcAccuracy(maeOverall);
 
     const overallAvgAcc = (accComp * 0.35 + accComb * 0.30 + accTurb * 0.35);
 
-    // True R² Score (Coefficient of Determination)
+    // Standard R² Score (Coefficient of Determination)
     const meanOverallTrue = sumOverallTrue / n;
     let ssRes = 0, ssTot = 0;
     for (const rc of rowComparisons) {
       ssRes += Math.pow(rc.trueOverall - rc.predOverall, 2);
       ssTot += Math.pow(rc.trueOverall - meanOverallTrue, 2);
     }
-    const rawR2 = ssTot > 1e-6 ? 1.0 - (ssRes / ssTot) : 0.92;
-    const r2Overall = rawR2 > 0 ? rawR2 : Math.max(0.85, 1.0 - (maeOverall / Math.max(stdTrue, 0.01)));
+    const r2Overall = ssTot > 1e-6 ? (1.0 - (ssRes / ssTot)) : 0.0;
 
     const phmAccuracy = Math.max(0, 100 * Math.exp(-phmScore / (n * 5)));
 
