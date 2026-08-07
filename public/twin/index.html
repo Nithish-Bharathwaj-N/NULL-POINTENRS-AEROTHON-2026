@@ -573,7 +573,8 @@ scene.background = new THREE.Color(0x060911);
 scene.fog = new THREE.FogExp2(0x060911, 0.035);
 
 const cam = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.05, 200);
-cam.position.set(1.8, 0.8, 3.8);
+cam.position.set(-2.4, 1.0, 4.4); // 270 degree viewing angle
+
 
 const ren = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
 ren.setSize(innerWidth, innerHeight);
@@ -1008,13 +1009,14 @@ function setTwinViewMode(mode) {
     }
 
     if (isOuter) {
-        cam.position.set(2.4, 1.0, 4.4);
+        cam.position.set(-2.4, 1.0, 4.4); // 270 degree view angle
         orb.target.set(0, 0, 0);
     } else {
-        cam.position.set(1.8, 0.8, 3.8);
+        cam.position.set(-2.2, 0.9, 3.8); // 270 degree view angle
         orb.target.set(0, 0, 0);
     }
 }
+
 
 
 // ── HEATMAP OVERLAY SHADERS & COLOR MAPS ──────────────────────────────
