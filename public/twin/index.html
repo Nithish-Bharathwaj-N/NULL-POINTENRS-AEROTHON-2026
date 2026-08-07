@@ -260,7 +260,7 @@
 
 
     <!-- ENTERPRISE HEALTH HUD HEADER (TOP RIGHT - SPLIT INTO SIX METRICS) -->
-    <div class="health-hud" id="health-hud" onclick="toggleAnalytics()" title="Click to Expand Full Analytics & Diagnostics">
+    <div class="health-hud" id="health-hud" onclick="toggleAnalytics()" onmouseenter="openAnalyticsOnHover()" onmouseleave="closeAnalyticsOnHover()" title="Click or Hover to Expand Full Analytics & Diagnostics">
         <div class="hh-title">
             <span>HEALTH & PERFORMANCE INDEX</span>
             <span style="font-size: 0.55rem; color: #38bdf8; margin-left: 10px;">EXPAND ▾</span>
@@ -420,7 +420,7 @@
     </button>
 
     <!-- ANALYTICS & HEALTH DASHBOARD DRAWER -->
-    <div class="analytics-drawer" id="analytics-drawer">
+    <div class="analytics-drawer" id="analytics-drawer" onmouseenter="clearTimeout(analyticsHoverTimer)" onmouseleave="closeAnalyticsOnHover()">
         <div class="ad-header">
             <div>
                 <div class="ad-title">DIGITAL TWIN ANALYTICS</div>
@@ -2017,7 +2017,32 @@ function toggleExploded() {
         } else { mesh.position.copy(ip); }
     });
 }
+let analyticsHoverTimer = null;
+
+function openAnalyticsOnHover() {
+    clearTimeout(analyticsHoverTimer);
+    E.DrawerOpen = true;
+    const drw = document.getElementById('analytics-drawer'); const btn = document.getElementById('btn-analytics');
+    if (drw) drw.classList.add('open');
+    if (btn) btn.classList.add('active');
+    poll();
+}
+
+function closeAnalyticsOnHover() {
+    analyticsHoverTimer = setTimeout(() => {
+        const drw = document.getElementById('analytics-drawer');
+        const isMouseOverDrawer = drw && drw.matches(':hover');
+        if (!isMouseOverDrawer) {
+            E.DrawerOpen = false;
+            const btn = document.getElementById('btn-analytics');
+            if (drw) drw.classList.remove('open');
+            if (btn) btn.classList.remove('active');
+        }
+    }, 300);
+}
+
 function toggleAnalytics() {
+    clearTimeout(analyticsHoverTimer);
     E.DrawerOpen = !E.DrawerOpen;
     const drw = document.getElementById('analytics-drawer'); const btn = document.getElementById('btn-analytics');
     drw.classList.toggle('open', E.DrawerOpen); btn.classList.toggle('active', E.DrawerOpen);
