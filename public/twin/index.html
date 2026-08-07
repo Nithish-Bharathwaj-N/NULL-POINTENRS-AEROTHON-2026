@@ -1260,9 +1260,7 @@ function manualThrottle(val) {
 
     const pct = parseInt(val) / 100.0;
     try {
-        fetch(`http://127.0.0.1:8000/api/v1/twin/engine/throttle/${pct}`, {method:'POST'}).catch(() => {
-            fetch(`http://localhost:8000/api/v1/twin/engine/throttle/${pct}`, {method:'POST'}).catch(() => {});
-        });
+        fetch(`${getTwinApiBase()}/engine/throttle/${pct}`, {method:'POST'}).catch(() => {});
     } catch(e) {}
 
     const label = pct > 0.8 ? 'MILITARY' : (pct > 0.3 ? 'CRUISE' : (pct > 0 ? 'IDLE' : 'OFF'));
@@ -1353,9 +1351,7 @@ function startupSequence() {
     clearSequenceTimer();
     E.IsRunning = true; let i = 0;
     try {
-        fetch('http://127.0.0.1:8000/api/v1/twin/engine/start', {method:'POST'}).catch(() => {
-            fetch('http://localhost:8000/api/v1/twin/engine/start', {method:'POST'}).catch(() => {});
-        });
+        fetch(`${getTwinApiBase()}/engine/start`, {method:'POST'}).catch(() => {});
     } catch(e) {}
     (function next() {
         if (i >= SU.length) return; const st = SU[i];
@@ -1392,9 +1388,7 @@ function shutdownSequence() {
     clearSequenceTimer();
     E.IsRunning = false; let i = 0;
     try {
-        fetch('http://127.0.0.1:8000/api/v1/twin/engine/stop', {method:'POST'}).catch(() => {
-            fetch('http://localhost:8000/api/v1/twin/engine/stop', {method:'POST'}).catch(() => {});
-        });
+        fetch(`${getTwinApiBase()}/engine/stop`, {method:'POST'}).catch(() => {});
     } catch(e) {}
     (function next() {
         if (i >= SD.length) return; const st = SD[i];
@@ -1417,18 +1411,23 @@ function shutdownSequence() {
 // ── DATASET STREAMING & PLAYBACK (STANDALONE + HYBRID BACKEND) ───────────
 let lastP = null, lastPv = null, lastXai = null, lastMa = null;
 
+function getTwinApiBase() {
+    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        return '/api/v1/twin';
+    }
+    return 'http://127.0.0.1:8000/api/v1/twin';
+}
+
 async function poll() {
     try {
-        let baseUrl = 'http://127.0.0.1:8000/api/v1/twin';
+        let baseUrl = getTwinApiBase();
         let cycleParam = (E.IsManualScrubbing || E.SimPlaying) ? `&cycle=${E.SimCycle || 1}` : '';
         let url = `${baseUrl}/telemetry/live?engine_id=${E.SimEngineID || '1'}${cycleParam}`;
         let r;
         try {
             r = await fetch(url);
         } catch(e) {
-            baseUrl = 'http://localhost:8000/api/v1/twin';
-            url = `${baseUrl}/telemetry/live?engine_id=${E.SimEngineID || '1'}${cycleParam}`;
-            r = await fetch(url);
+            r = await fetch(`/api/v1/twin/telemetry/live?engine_id=${E.SimEngineID || '1'}${cycleParam}`);
         }
         const d = await r.json();
         if (d && (d.telemetry || d.predictions)) {
@@ -1929,7 +1928,7 @@ function toggleAnalytics() {
 }
 async function injectFailure(k) {
     try {
-        await fetch(`http://localhost:8000/api/v1/twin/telemetry/scenario/${k}`, {method:'POST'});
+        await fetch(`${getTwinApiBase()}/telemetry/scenario/${k}`, {method:'POST'}).catch(() => {});
         
         // 3D Ingestion Animation Trigger
         if (k === 'FOREIGN_OBJECT_DAMAGE') {

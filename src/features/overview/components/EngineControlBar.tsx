@@ -4,7 +4,12 @@ import React, { useCallback, useState } from 'react';
 import { Power, PowerOff, Gauge, Wifi, WifiOff, AlertTriangle, Loader2 } from 'lucide-react';
 import { useBackendIntelligence } from '@/hooks/useBackendIntelligence';
 
-const BACKEND = 'http://127.0.0.1:8000/api/v1/twin';
+const getBackend = () => {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return '/api/v1/twin';
+  }
+  return 'http://127.0.0.1:8000/api/v1/twin';
+};
 
 type EngineState = 'OFF' | 'STARTING' | 'IDLE' | 'RUNNING' | 'SHUTDOWN' | 'FAULT';
 
@@ -26,7 +31,7 @@ export const EngineControlBar: React.FC = React.memo(() => {
     if (loading) return;
     setLoading(true);
     try {
-      await fetch(`${BACKEND}/engine/stop`, { method: 'POST' });
+      await fetch(`${getBackend()}/engine/stop`, { method: 'POST' });
     } catch { /* ignore */ }
     setLoading(false);
   }, [loading]);
@@ -34,7 +39,7 @@ export const EngineControlBar: React.FC = React.memo(() => {
   const applyThrottle = useCallback(async (pct: number) => {
     setThrottle(pct);
     try {
-      await fetch(`${BACKEND}/engine/throttle/${(pct / 100).toFixed(2)}`, { method: 'POST' });
+      await fetch(`${getBackend()}/engine/throttle/${(pct / 100).toFixed(2)}`, { method: 'POST' });
     } catch { /* ignore */ }
   }, []);
 

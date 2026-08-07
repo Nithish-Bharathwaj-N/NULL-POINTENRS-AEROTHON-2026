@@ -105,35 +105,30 @@ export const OperatorRegistrationModal: React.FC<OperatorRegistrationModalProps>
 
     try {
       let res: Response;
+      const regUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+        ? '/api/v1/auth/register'
+        : 'http://127.0.0.1:8000/api/v1/auth/register';
+      const payload = {
+        operator_id:  operatorId,
+        employee_id:  employeeId,
+        full_name:    fullName,
+        role:         role,
+        callsign:     callsign || `HAL-${operatorId.slice(-4)}`,
+        squadron:     squadron,
+        password:     password,
+        base64_frame: frameToSend,
+      };
       try {
-        res = await fetch('http://127.0.0.1:8000/api/v1/auth/register', {
+        res = await fetch(regUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            operator_id:  operatorId,
-            employee_id:  employeeId,
-            full_name:    fullName,
-            role:         role,
-            callsign:     callsign || `HAL-${operatorId.slice(-4)}`,
-            squadron:     squadron,
-            password:     password,
-            base64_frame: frameToSend,
-          }),
+          body: JSON.stringify(payload),
         });
       } catch {
-        res = await fetch('http://localhost:8000/api/v1/auth/register', {
+        res = await fetch('/api/v1/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            operator_id:  operatorId,
-            employee_id:  employeeId,
-            full_name:    fullName,
-            role:         role,
-            callsign:     callsign || `HAL-${operatorId.slice(-4)}`,
-            squadron:     squadron,
-            password:     password,
-            base64_frame: frameToSend,
-          }),
+          body: JSON.stringify(payload),
         });
       }
 

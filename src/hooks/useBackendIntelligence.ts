@@ -9,7 +9,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMissionStore } from '@/stores/useMissionStore';
 
-const BACKEND_URL = 'http://127.0.0.1:8000/api/v1/twin/telemetry/live';
+const getBackendUrl = () => {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return '/api/v1/twin/telemetry/live';
+  }
+  return 'http://127.0.0.1:8000/api/v1/twin/telemetry/live';
+};
+
 const POLL_MS = 1500;
 
 export interface IntelligenceState {
@@ -191,7 +197,7 @@ export function useBackendIntelligence(): IntelligenceState {
   useEffect(() => {
     const poll = async () => {
       try {
-        const res = await fetch(BACKEND_URL, {
+        const res = await fetch(getBackendUrl(), {
           signal: AbortSignal.timeout(8000),
           cache: 'no-store',
           headers: { 'Connection': 'keep-alive' },

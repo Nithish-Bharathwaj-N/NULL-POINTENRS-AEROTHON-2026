@@ -23,7 +23,12 @@ import { useBackendIntelligence } from '@/hooks/useBackendIntelligence';
 import { useTelemetryStore } from '@/stores/useTelemetryStore';
 import { useMissionStore } from '@/stores/useMissionStore';
 
-const BACKEND = 'http://127.0.0.1:8000/api/v1/twin';
+const getBackend = () => {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return '/api/v1/twin';
+  }
+  return 'http://127.0.0.1:8000/api/v1/twin';
+};
 
 // ─── 16 Scenarios with plain-English layman descriptions ─────────────────────
 const SCENARIOS: Record<string, {
@@ -380,7 +385,7 @@ const ScenarioSelector: React.FC<{ activeKey: string }> = ({ activeKey }) => {
     setSelected(key);
     setOpen(false);
     try {
-      await fetch(`${BACKEND}/telemetry/scenario/${key}`, { method: 'POST' });
+      await fetch(`${getBackend()}/telemetry/scenario/${key}`, { method: 'POST' });
     } catch { /* backend offline */ }
     setLoading(false);
   }, []);
@@ -500,14 +505,14 @@ export const LaymanOverview: React.FC = React.memo(() => {
     const init = async () => {
       // 1. Start the engine (ignore error if already started)
       try {
-        await fetch(`${BACKEND}/engine/start`, { method: 'POST' });
+        await fetch(`${getBackend()}/engine/start`, { method: 'POST' });
       } catch (_) {}
 
       // 2. Pre-load ALL historical predictions for Engine 1 from the dataset
       //    The backend runs every cycle's sensor readings through the trained
       //    ML model and returns per-cycle predictions (cycle = X-axis only).
       try {
-        const r = await fetch(`${BACKEND}/telemetry/history/1`);
+        const r = await fetch(`${getBackend()}/telemetry/history/1`);
         const data = await r.json();
         const pts: CyclePoint[] = (data.history ?? []).map((h: any) => ({
           cycle:      h.cycle,

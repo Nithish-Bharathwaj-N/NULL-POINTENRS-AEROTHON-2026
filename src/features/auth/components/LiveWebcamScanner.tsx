@@ -91,14 +91,17 @@ export const LiveWebcamScanner: React.FC<LiveWebcamScannerProps> = React.memo(({
 
     try {
       let res: Response;
+      const verifyUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+        ? '/api/v1/auth/login/verify-face'
+        : 'http://127.0.0.1:8000/api/v1/auth/login/verify-face';
       try {
-        res = await fetch('http://127.0.0.1:8000/api/v1/auth/login/verify-face', {
+        res = await fetch(verifyUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ challenge_id: challengeId, base64_frame: base64Frame || 'DEMO_FRAME', auth_mode: authMode }),
         });
       } catch {
-        res = await fetch('http://localhost:8000/api/v1/auth/login/verify-face', {
+        res = await fetch('/api/v1/auth/login/verify-face', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ challenge_id: challengeId, base64_frame: base64Frame || 'DEMO_FRAME', auth_mode: authMode }),

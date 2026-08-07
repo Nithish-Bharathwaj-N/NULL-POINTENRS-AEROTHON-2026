@@ -11,8 +11,14 @@ export interface ApiResponse<T> {
 class ApiClient {
   private baseUrl: string;
 
-  constructor(baseUrl = 'http://localhost:8000/api/v1') {
-    this.baseUrl = baseUrl;
+  constructor(baseUrl?: string) {
+    if (baseUrl) {
+      this.baseUrl = baseUrl;
+    } else if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      this.baseUrl = '/api/v1';
+    } else {
+      this.baseUrl = 'http://127.0.0.1:8000/api/v1';
+    }
   }
 
   getBaseUrl(): string {

@@ -82,9 +82,12 @@ export const MissionAccessWorkstation: React.FC = React.memo(() => {
       try {
         let res: Response;
         try {
-          res = await fetch('http://127.0.0.1:8000/api/v1/auth/operators');
+          const authUrl = (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+            ? '/api/v1/auth/operators'
+            : 'http://127.0.0.1:8000/api/v1/auth/operators';
+          res = await fetch(authUrl);
         } catch {
-          res = await fetch('http://localhost:8000/api/v1/auth/operators');
+          res = await fetch('/api/v1/auth/operators');
         }
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) {

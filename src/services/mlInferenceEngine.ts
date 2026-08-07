@@ -47,6 +47,10 @@ class MLInferenceEngine {
   private isDefaultBackendActive = false;
 
   constructor() {
+    if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+      this.aerothonLocalBackendUrl = '';
+      this.defaultBackendUrl = '/api/v1/twin';
+    }
     this.checkBackendHealth();
   }
 
