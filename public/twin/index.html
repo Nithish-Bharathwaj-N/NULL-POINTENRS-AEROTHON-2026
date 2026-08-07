@@ -1817,8 +1817,10 @@ ren.domElement.addEventListener('click', (e) => {
     if (E.TwinViewMode === 'OUTER') {
         const hits = rc.intersectObjects(outerGrp.children, true);
         if (hits.length > 0) {
+            const worldPos = new THREE.Vector3();
+            hits[0].object.getWorldPosition(worldPos);
+            orb.target.lerp(worldPos, 0.6);
             playInspectPing();
-            setTwinViewMode('INTERNAL');
         }
         return;
     }
