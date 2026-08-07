@@ -317,7 +317,14 @@
         </div>
     </div>
 
-
+    <!-- MANUAL AEROSPACE THROTTLE QUADRANT -->
+    <div class="throttle-quadrant">
+        <span class="th-title">THROTTLE</span>
+        <div class="th-slider-box">
+            <input type="range" id="throttle-slider" class="th-slider" min="0" max="100" value="0" oninput="manualThrottle(this.value)">
+        </div>
+        <span class="th-val" id="throttle-val">0% IDLE</span>
+    </div>
 
     <!-- 46-COMPONENT PRECISION DATASHEET INSPECTOR -->
     <div class="inspector" id="inspector">
@@ -375,16 +382,7 @@
         </div>
 
         <!-- ROW 2: ENGINE ACTION CONTROLS & DISPLAY MODES -->
-        <div class="dock-row ctrl-row" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
-            <!-- INTEGRATED THROTTLE CONTROLLER -->
-            <div style="display: flex; align-items: center; gap: 8px; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 5px; padding: 4px 10px;">
-                <span style="font-size: 0.62rem; color: #38bdf8; font-weight: 800; letter-spacing: 1px;">THROTTLE</span>
-                <input type="range" id="throttle-slider" class="th-slider" style="width: 80px; height: 4px; accent-color: #38bdf8; cursor: pointer;" min="0" max="100" value="0" oninput="manualThrottle(this.value)">
-                <span id="throttle-val" style="font-size: 0.65rem; color: #f8fafc; font-weight: 800; min-width: 45px;">0% IDLE</span>
-            </div>
-
-            <span style="color: rgba(255,255,255,0.15);">|</span>
-
+        <div class="dock-row ctrl-row">
             <button class="ctrl-btn start" id="btn-engine-toggle" onclick="toggleEngineState()">▶ START ENGINE</button>
             <button class="ctrl-btn active" id="btn-cutaway" onclick="toggleCutaway()">CUTAWAY</button>
             <button class="ctrl-btn" id="btn-exploded" onclick="toggleExploded()">EXPLODE</button>
