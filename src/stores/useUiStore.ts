@@ -43,7 +43,7 @@ interface UiStoreState {
 }
 
 export const useUiStore = create<UiStoreState>((set, get) => ({
-  currentView: 'overview',
+  currentView: 'twin',
   selectedStageRef: 'combustor', // Default selected subsystem for demo binding
   selectedAlert: null,
   selectedSensorChannel: null,
