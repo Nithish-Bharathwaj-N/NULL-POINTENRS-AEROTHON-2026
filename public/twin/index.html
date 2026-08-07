@@ -1855,7 +1855,8 @@ function togglePartsDrawer() {
     const btn = document.getElementById('btn-parts');
     const deck = document.getElementById('stage-workstation-deck');
 
-    if (drw) drw.classList.toggle('open', E.PartsDrawerOpen);
+    // Keep side page drawer completely closed and hidden
+    if (drw) drw.classList.remove('open');
     if (btn) btn.classList.toggle('active', E.PartsDrawerOpen);
     if (deck) deck.style.display = E.PartsDrawerOpen ? 'flex' : 'none';
     if (stagePedestalGroup) stagePedestalGroup.visible = E.PartsDrawerOpen;
