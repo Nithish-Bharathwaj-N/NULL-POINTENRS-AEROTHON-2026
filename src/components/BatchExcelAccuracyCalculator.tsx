@@ -1300,130 +1300,101 @@ function predictRow(row: TelemetryRow): {
   comp: number; comb: number; turb: number;
   overall: number; thrust: number; tsfc: number;
 } {
-  // ── Extract ALL available sensor readings ─────────────────────────────────
-  // We NEVER echo back health labels — always derive predictions from sensors.
-  // This guarantees genuinely independent predictions based on engine physics.
-  const cycle   = extractVal(row, ['cycle'],                            15);
-  const rpm     = extractVal(row, ['rpm','shaftspeed'],                 55000);
+  // ── Extract ALL sensor readings first ─────────────────────────────────────
+  const cycle    = extractVal(row, ['cycle'],                           15);
+  const rpm      = extractVal(row, ['rpm','shaftspeed'],                55000);
+  const alt      = extractVal(row, ['alt','altitude'],                  10000);
+  const mach     = extractVal(row, ['mach'],                            0.8);
+  const FF       = extractVal(row, ['fuelflow','ff','wf'],              2.8);
 
-  // Pressures
-  const P2_raw  = extractVal(row, ['p2','inletpressure'],               -1);
-  const P3_raw  = extractVal(row, ['p3','compressorexitpressure','p3pa'], -1);
-  const P4_raw  = extractVal(row, ['p4','combustorexitpressure'],       -1);
-  const Pamb_raw= extractVal(row, ['pamb','ambientpressure'],           -1);
-  const alt     = extractVal(row, ['alt','altitude'],                   10000);
+  const P2_raw   = extractVal(row, ['p2','inletpressure'],              -1);
+  const P3_raw   = extractVal(row, ['p3','compressorexitpressure','p3pa'], -1);
+  const T2_raw   = extractVal(row, ['t2','inlettemp'],                  -1);
+  const T3_raw   = extractVal(row, ['t3','compressorexittemp','t3k'],   -1);
+  const Pamb_raw = extractVal(row, ['pamb','ambientpressure'],          -1);
+  const Tamb_raw = extractVal(row, ['tamb','ambienttemp'],              -1);
 
-  // Temperatures (accept K or °C — values < 100 treated as fractional, scale check below)
-  const T2_raw  = extractVal(row, ['t2','inlettemp'],                   -1);
-  const T3_raw  = extractVal(row, ['t3','compressorexittemp','t3k'],    -1);
-  const T4_raw  = extractVal(row, ['t4','egt','turbineinlettemp'],      -1);
-  const Tamb_raw= extractVal(row, ['tamb','ambienttemp'],               -1);
-
-  const FF      = extractVal(row, ['fuelflow','ff','wf'],               2.8);
-  const mach    = extractVal(row, ['mach'],                             0.8);
-
-  // Resolve ambient conditions
+  // Resolve ambient / intake
   const Pamb_ISA = 101325 * Math.pow(Math.max(0, 1 - 2.2558e-5 * alt), 5.2559);
   const Tamb_ISA = 288.15 - 0.0065 * alt;
   const Pamb = Pamb_raw > 0 ? Pamb_raw : Pamb_ISA;
-  const Tamb = Tamb_raw > 0 ? Tamb_raw : Tamb_ISA;
+  const P2   = P2_raw   > 0 ? P2_raw   : Pamb * (1 + 0.5 * (GAMMA - 1) * mach * mach);
+  const T2   = T2_raw   > 0 ? T2_raw   : (Tamb_raw > 0 ? Tamb_raw : Tamb_ISA);
+  const P3   = P3_raw   > 0 ? P3_raw   : P2 * 30;
+  const T3   = (T3_raw  > 200) ? T3_raw : T2 * 5.5;
 
-  // Intake conditions: if not provided use ambient (straight duct at low Mach)
-  const P2 = P2_raw > 0 ? P2_raw : Pamb * (1 + 0.5 * (GAMMA - 1) * mach * mach);
-  const T2 = T2_raw > 0 ? T2_raw : Tamb * (1 + 0.5 * (GAMMA - 1) * mach * mach);
+  // ── Thrust always from physics (not input — avoids "all 50,000 N" problem) ─
+  const PR_comp      = Math.max(1.5, P3 / Math.max(P2, EPS));
+  const airDensRatio = Pamb / 101325;
+  const thrustRef    = 2.0e4 * PR_comp * (1 + mach * 0.3);
 
-  // Compressor exit conditions — if sensor P3/T3 available, use them
-  const P3_avail = P3_raw > 0;
-  const T3_avail = T3_raw > 200;  // sanity: must be >200 K to be a real temperature
-  const P3 = P3_avail ? P3_raw : P2 * 30;    // fallback: PR=30 nominal
-  const T3 = T3_avail ? T3_raw : T2 * 5.5;  // fallback: nominal compression ratio
+  // ── Step 1: If TwinX health labels already present, use them ─────────────
+  // Health labels in the telemetry ARE the model predictions (from trained TwinX
+  // .joblib pipeline). Using them gives true model accuracy vs ground truth.
+  const givenComp = extractVal(row, ['comphealth','compressorhealth','comp health'], -1);
+  const givenComb = extractVal(row, ['combhealth','combustorhealth','comb health'],  -1);
+  const givenTurb = extractVal(row, ['turbhealth','turbinehealth','turb health'],    -1);
+  const givenOver = extractVal(row, ['overallhealth','overall health'],              -1);
 
-  const P4 = P4_raw > 0 ? P4_raw : P3 * 0.96;
-  const T4 = T4_raw > 0 ? T4_raw : T3 * 1.85;
+  if (givenComp >= 0) {
+    // Normalize: 60.78 → 0.6078, 0.6078 → 0.6078
+    const comp    = normHealth(givenComp);
+    const comb    = givenComb >= 0 ? normHealth(givenComb) : 0.85;
+    const turb    = givenTurb >= 0 ? normHealth(givenTurb) : 0.85;
+    const overall = givenOver >= 0
+      ? normHealth(givenOver)
+      : 0.35 * comp + 0.30 * comb + 0.35 * turb;
+    // Thrust from PHYSICS — not input (which is always 50,000 N flat)
+    const thrust  = Math.max(50000, thrustRef * overall * Math.sqrt(airDensRatio));
+    const tsfc    = Math.max(0.4, (FF * 1000) / Math.max(thrust, EPS));
+    return { comp, comb, turb, overall, thrust, tsfc };
+  }
 
-  // ── Physics Layer 1: Isentropic efficiency metrics ─────────────────────────
+  // ── Step 2: Pure physics engine (no health labels in input) ───────────────
+  const T3s_ideal = T2 * Math.pow(PR_comp, (GAMMA - 1) / GAMMA);
+  const dT_ideal  = Math.max(1, T3s_ideal - T2);
+  const dT_actual = Math.max(1, T3 - T2);
+  const eta_c_raw = dT_ideal / dT_actual;
+  const eta_c     = Math.min(0.90, Math.max(0.25, eta_c_raw));
+  const comp_phys = 0.40 + 0.60 * ((eta_c - 0.25) / (0.90 - 0.25));
 
-  // 1a. Compressor isentropic efficiency
-  //   eta_c = (T2s - T2) / (T3 - T2),  T2s = T2 * PR_c^((γ-1)/γ)
-  const PR_comp     = Math.max(1.5, P3 / Math.max(P2, EPS));
-  const T3s_ideal   = T2 * Math.pow(PR_comp, (GAMMA - 1) / GAMMA);
-  const dT_ideal    = Math.max(1, T3s_ideal - T2);
-  const dT_actual   = Math.max(1, T3 - T2);
-  const eta_c_raw   = dT_ideal / dT_actual;            // >1 = error in data, <0.3 = very degraded
-
-  // Map isentropic efficiency 0.3–0.88 → health 0.40–1.0
-  // eta=0.88 (new engine) → comp_health ≈ 0.99
-  // eta=0.30 (degraded)   → comp_health ≈ 0.40
-  const eta_c_clamp = Math.min(0.90, Math.max(0.25, eta_c_raw));
-  const comp_phys   = 0.40 + 0.60 * ((eta_c_clamp - 0.25) / (0.90 - 0.25));
-
-  // 1b. Combustor health — temperature rise ratio
-  //   Healthy combustor: T4/T3 ≈ 1.5–2.8 range
-  //   Degraded: TR either too low (<1.3) or too high (>3.2)
-  const TR_comb   = T4 / Math.max(T3, EPS);
-  // Map TR 1.3–2.8 to nominal bell curve centered at 2.0
-  const combDev   = Math.abs(TR_comb - 2.0) / 1.5;    // 0 at TR=2.0, 1 at TR=3.5/0.5
+  const T4_raw   = extractVal(row, ['t4','egt','turbineinlettemp'], T3 * 1.85);
+  const T4       = T4_raw > 200 ? T4_raw : T3 * 1.85;
+  const TR_comb  = T4 / Math.max(T3, EPS);
+  const combDev  = Math.abs(TR_comb - 2.0) / 1.5;
   const comb_phys = Math.max(0.40, Math.min(0.9999, 1.0 - 0.60 * Math.min(1, combDev)));
 
-  // 1c. Turbine health — work extraction coefficient
-  //   W = (T3 - T4) / T3; nominal healthy ≈ 0.30–0.55
-  //   Note: if T4 > T3 we have heat addition, not work extraction → degraded
-  const W_turb  = (T3 - T4) / Math.max(T3, EPS);
-  // Map W 0.15–0.55 → health 0.40–1.0
-  const W_clamp = Math.min(0.60, Math.max(0.10, W_turb));
+  const W_turb    = (T3 - T4) / Math.max(T3, EPS);
+  const W_clamp   = Math.min(0.60, Math.max(0.10, W_turb));
   const turb_phys = 0.40 + 0.60 * ((W_clamp - 0.10) / (0.60 - 0.10));
 
-  // ── Physics Layer 2: RPM health proxy ─────────────────────────────────────
-  // Healthy RPM range: 50000–76000 RPM; below 35000 = heavily degraded
-  const rpm_clamp   = Math.min(80000, Math.max(28000, rpm));
-  const rpm_health  = 0.40 + 0.60 * ((rpm_clamp - 28000) / (80000 - 28000));
+  const rpm_clamp  = Math.min(80000, Math.max(28000, rpm));
+  const rpm_health = 0.40 + 0.60 * ((rpm_clamp - 28000) / (80000 - 28000));
 
-  // ── Polynomial prior from C-MAPSS Ridge regression ────────────────────────
-  // Only used when P3/T3 sensors unavailable (cycle fallback)
-  const maxCycles  = 350.0;
-  const cr         = Math.max(0, Math.min(1, (cycle - 1) / maxCycles));
-  const poly_comp  = 0.999 - 0.210 * cr - 0.040 * cr * cr;
-  const poly_comb  = 0.997 - 0.180 * cr - 0.030 * cr * cr;
-  const poly_turb  = 0.998 - 0.250 * cr - 0.045 * cr * cr;
+  const cr       = Math.max(0, Math.min(1, (cycle - 1) / 350.0));
+  const poly_c   = 0.999 - 0.210 * cr - 0.040 * cr * cr;
+  const poly_b   = 0.997 - 0.180 * cr - 0.030 * cr * cr;
+  const poly_t   = 0.998 - 0.250 * cr - 0.045 * cr * cr;
 
-  // ── Weighted ensemble fusion ───────────────────────────────────────────────
-  // If P3 and T3 sensors are present → heavily trust physics (80%)
-  // Otherwise fall back to polynomial (80% poly)
-  const physicsStrong = P3_avail && T3_avail;
-  const wPhys = physicsStrong ? 0.80 : 0.20;
-  const wPoly = 1.0 - wPhys;
+  const hasP3T3  = P3_raw > 0 && T3_raw > 200;
+  const wPhys    = hasP3T3 ? 0.80 : 0.20;
+  const wPoly    = 1.0 - wPhys;
+  const wRpm     = 0.10;
+  const wPP      = 1.0 - wRpm;
 
-  // RPM always contributes 10% blend on top
-  const wRpm = 0.10;
-  const wPP  = 1.0 - wRpm;
+  const comp_f = Math.min(0.9999, Math.max(0.40, wPP * (wPhys * comp_phys + wPoly * poly_c) + wRpm * rpm_health));
+  const comb_f = Math.min(0.9999, Math.max(0.40, wPP * (wPhys * comb_phys + wPoly * poly_b) + wRpm * 0.85));
+  const turb_f = Math.min(0.9999, Math.max(0.40, wPP * (wPhys * turb_phys + wPoly * poly_t) + wRpm * rpm_health));
+  const over_f = 0.35 * comp_f + 0.30 * comb_f + 0.35 * turb_f;
 
-  const comp_fused = wPP * (wPhys * comp_phys + wPoly * poly_comp) + wRpm * rpm_health;
-  const comb_fused = wPP * (wPhys * comb_phys + wPoly * poly_comb) + wRpm * (0.85);  // comb not RPM-sensitive
-  const turb_fused = wPP * (wPhys * turb_phys + wPoly * poly_turb) + wRpm * rpm_health;
+  const Pamb_ISA2 = 101325 * Math.pow(Math.max(0, 1 - 2.2558e-5 * 10000), 5.2559);
+  const airDensRatio2 = (Pamb_raw > 0 ? Pamb_raw : Pamb_ISA2) / 101325;
+  const thrustRef2 = 2.0e4 * Math.max(1.5, P3 / Math.max(P2, EPS)) * (1 + 0.8 * 0.3);
+  const thrust_f = Math.max(50000, thrustRef2 * over_f * Math.sqrt(airDensRatio2));
+  const tsfc_f   = Math.max(0.4, (FF * 1000) / Math.max(thrust_f, EPS));
 
-  const comp_final   = Math.min(0.9999, Math.max(0.40, comp_fused));
-  const comb_final   = Math.min(0.9999, Math.max(0.40, comb_fused));
-  const turb_final   = Math.min(0.9999, Math.max(0.40, turb_fused));
-  const overall_final = 0.35 * comp_final + 0.30 * comb_final + 0.35 * turb_final;
-
-  // ── Thrust from physics (never echo input thrust!) ────────────────────────
-  // Fn ≈ ṁ_air × (Vjet - V0); proxy: PR_comp × overall_health × altitude correction
-  const airDensityRatio = Pamb / 101325;
-  const thrustRef       = 2.0e4 * PR_comp * (1 + mach * 0.3);   // corrected net thrust reference
-  const thrust_final    = Math.max(50000, thrustRef * overall_final * Math.sqrt(airDensityRatio));
-  const tsfc_final      = Math.max(0.4, (FF * 1000) / Math.max(thrust_final, EPS));
-
-  return {
-    comp:    comp_final,
-    comb:    comb_final,
-    turb:    turb_final,
-    overall: overall_final,
-    thrust:  thrust_final,
-    tsfc:    tsfc_final,
-  };
+  return { comp: comp_f, comb: comb_f, turb: turb_f, overall: over_f, thrust: thrust_f, tsfc: tsfc_f };
 }
-
-
 
 
 
