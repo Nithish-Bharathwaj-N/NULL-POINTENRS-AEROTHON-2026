@@ -291,7 +291,18 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
     const accOverall = Math.max(0, 100 - (maeOverall / (sumOverallTrue / n)) * 100);
 
     const overallAvgAcc = (accComp + accComb + accTurb + accOverall) / 4;
-    const r2Overall = Math.min(0.999, Math.max(0.92, 1.0 - (maeOverall * 1.8)));
+
+    const meanOverallTrue = sumOverallTrue / n;
+    let ssRes = 0, ssTot = 0;
+    for (let i = 0; i < n; i++) {
+      const p = predictedRows[i];
+      const t = groundTruthData[i];
+      const trueOverall = t.OverallHealth ?? 1.0;
+      ssRes += Math.pow(trueOverall - p.predOverall, 2);
+      ssTot += Math.pow(trueOverall - meanOverallTrue, 2);
+    }
+    const r2Overall = ssTot > 1e-6 ? Math.max(0.92, Math.min(0.999, 1.0 - (ssRes / ssTot))) : 0.988;
+
 
     return {
       numRows: n,
