@@ -1,0 +1,49 @@
+{
+  "test_dataset": "C:\\Users\\praja\\Downloads\\AEROTHON2026-main (2)\\AEROTHON2026-main\\backend\\digital_twin\\data\\turbojet_complete_dataset.csv",
+  "evaluation_timestamp": "2026-08-07 16:57:08",
+  "dataset_summary": {
+    "num_samples": 30000,
+    "num_engines": 100
+  },
+  "target_metrics": {
+    "CompressorHealth": {
+      "MAE": 6.5212,
+      "RMSE": 7.6082,
+      "R2": -0.2753
+    },
+    "CombustorHealth": {
+      "MAE": 2.1162,
+      "RMSE": 2.6001,
+      "R2": -0.0016
+    },
+    "TurbineHealth": {
+      "MAE": 4.2547,
+      "RMSE": 5.0795,
+      "R2": -0.0001
+    },
+    "OverallHealth": {
+      "MAE": 4.598,
+      "RMSE": 5.3533,
+      "R2": -0.2583
+    },
+    "Thrust_N": {
+      "MAE": 43411.8825,
+      "RMSE": 53211.798,
+      "R2": -8.8871
+    },
+    "TSFC_g_N_s": {
+      "MAE": 0.0058,
+      "RMSE": 0.0075,
+      "R2": -0.5237
+    }
+  },
+  "physics_metrics": {
+    "compliance_rate_pct": 98.45
+  },
+  "resource_benchmarks": {
+    "total_time_sec": 3.41,
+    "mean_latency_ms_per_sample": 0.089,
+    "throughput_samples_per_sec": 8797.9,
+    "peak_ram_mb": 245.4
+  }
+}

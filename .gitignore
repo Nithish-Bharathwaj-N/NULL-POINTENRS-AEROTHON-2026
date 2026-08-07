@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+backend_venv/
+
+# Build output
+dist/
+.vite/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Demo recordings
+demo_recordings/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Env files
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# InsightFace model cache
+.insightface/
+
+# Zip archives & Scratch
+*.zip
+scratch/
+.system_generated/

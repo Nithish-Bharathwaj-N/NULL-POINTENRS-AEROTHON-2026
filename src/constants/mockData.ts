@@ -1,0 +1,18 @@
+// HAL Mission Control - Re-exporting Operational Baseline dataset
+// Note: Aliases maintained for backward compatibility during databus transition
+export * from './operationalBaseline';
+import {
+  OPERATIONAL_SUBSYSTEM_STAGES,
+  OPERATIONAL_TELEMETRY,
+  OPERATIONAL_ALERTS,
+  OPERATIONAL_MAINTENANCE_TASKS,
+  OPERATIONAL_TIMELINE_EVENTS,
+  OPERATIONAL_AI_INFERENCE,
+} from './operationalBaseline';
+
+export const MOCK_SUBSYSTEM_STAGES = OPERATIONAL_SUBSYSTEM_STAGES;
+export const MOCK_TELEMETRY = OPERATIONAL_TELEMETRY;
+export const MOCK_ALERTS = OPERATIONAL_ALERTS;
+export const MOCK_MAINTENANCE_TASKS = OPERATIONAL_MAINTENANCE_TASKS;
+export const MOCK_TIMELINE_EVENTS = OPERATIONAL_TIMELINE_EVENTS;
+export const MOCK_AI_INFERENCE = OPERATIONAL_AI_INFERENCE;
