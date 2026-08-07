@@ -103,6 +103,8 @@
         let meshes = [];
         let isWireframe = false;
 
+        let outerFanRotors = [];
+
         new THREE.GLTFLoader().load('./Turbojetdemo.glb', (gltf) => {
             const m = gltf.scene;
             m.scale.set(0.6, 0.6, 0.6);
@@ -116,6 +118,10 @@
                         wireframe: false
                     });
                     meshes.push(c);
+                    const n = c.name;
+                    if (n.includes('Object_14') || n.includes('Object_11') || n.includes('Object_6') || n.includes('Object_13') || n.includes('Object_7') || n.includes('Fan') || n.includes('Blade') || n.includes('Hub') || n.includes('Cone')) {
+                        outerFanRotors.push(c);
+                    }
                 }
             });
         });
@@ -164,10 +170,11 @@
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
-            modelGroup.rotation.z += 0.005; // Continuous outer spool rotation
             renderer.render(scene, camera);
         }
         animate();
+
+
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
