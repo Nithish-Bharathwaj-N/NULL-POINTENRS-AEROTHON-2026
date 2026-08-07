@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AEROTWIN Ω — 3D Outer Layer Viewport (Turbojetdemo)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: #060911; font-family: 'JetBrains Mono', 'Segoe UI', monospace; color: #f8fafc; }
+        #canvas-container { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+
+        .hud-card {
+            position: absolute; z-index: 10;
+            background: rgba(11, 19, 43, 0.85);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            border-radius: 8px; backdrop-filter: blur(12px);
+            padding: 12px 16px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .header-hud { top: 16px; left: 16px; }
+        .sh-org { font-size: 0.60rem; color: #38bdf8; font-weight: 700; letter-spacing: 1.5px; }
+        .sh-title { font-size: 1.10rem; font-weight: 900; color: #ffffff; letter-spacing: 1px; }
+        .sh-sub { font-size: 0.68rem; color: #94a3b8; margin-top: 2px; }
+
+        .controls-hud { bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+        .btn-action {
+            background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.4);
+            color: #38bdf8; padding: 8px 16px; border-radius: 6px; font-weight: 700; font-size: 0.70rem;
+            cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;
+        }
+        .btn-action:hover { background: #0284c7; color: #fff; border-color: #0284c7; box-shadow: 0 0 12px rgba(2, 132, 199, 0.5); }
+
+        .inspector-panel {
+            top: 16px; right: 16px; width: 320px; display: none; flex-direction: column; gap: 8px;
+        }
+
+        .badge-tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.60rem; font-weight: 700; }
+        .badge-cyan { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+
+    <div class="hud-card header-hud">
+        <div class="sh-org">HAL MISSION CONTROL · 3D AIRFRAME</div>
+        <div class="sh-title">3D OUTER LAYER (Turbojetdemo)</div>
+        <div class="sh-sub" id="outer-state">AIRFRAME EXTERIOR SHELL · LIVE SPOOL ROTATION</div>
+    </div>
+
+    <div class="hud-card controls-hud">
+        <button class="btn-action" onclick="resetCamera()">🎥 RESET CAM</button>
+        <button class="btn-action" onclick="toggleWireframe()">🌐 WIREFRAME SHELL</button>
+        <button class="btn-action" onclick="toggleAutoRotate()">🔄 AUTO ROTATE</button>
+    </div>
+
+    <div class="hud-card inspector-panel" id="inspector-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:700; color:#38bdf8; font-size:0.85rem;" id="insp-title">Outer Casing Component</div>
+            <span class="badge-tag badge-cyan">CAD INSPECTION</span>
+        </div>
+        <div style="font-size:0.72rem; color:#cbd5e1; line-height:1.4; margin-top:4px;" id="insp-body">
+            High-tensile aerodynamic outer shell structure from Turbojetdemo CAD assembly.
+        </div>
+    </div>
+
+    <script>
+        // ── THREE.JS SETUP ─────────────────────────────────────────────────
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x060911);
+        scene.fog = new THREE.FogExp2(0x060911, 0.035);
+
+        const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.05, 200);
+        camera.position.set(2.4, 1.0, 4.4);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.25;
+        container.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+
+        const grid = new THREE.GridHelper(12, 24, 0x1e293b, 0x0f172a);
+        grid.position.y = -1.2;
+        scene.add(grid);
+
+        scene.add(new THREE.AmbientLight(0x38bdf8, 0.8));
+        const keyLight = new THREE.DirectionalLight(0xffffff, 2.0); keyLight.position.set(6, 10, 6); scene.add(keyLight);
+        const fillLight = new THREE.DirectionalLight(0x0284c7, 1.2); fillLight.position.set(-6, 4, -5); scene.add(fillLight);
+        const rimLight = new THREE.DirectionalLight(0x64748b, 0.9); rimLight.position.set(0, -6, -4); scene.add(rimLight);
+
+        let modelGroup = new THREE.Group();
+        scene.add(modelGroup);
+        let meshes = [];
+        let isWireframe = false;
+
+        new THREE.GLTFLoader().load('./Turbojetdemo.glb', (gltf) => {
+            const m = gltf.scene;
+            m.scale.set(0.6, 0.6, 0.6);
+            modelGroup.add(m);
+            m.traverse((c) => {
+                if (c.isMesh) {
+                    c.material = new THREE.MeshStandardMaterial({
+                        color: c.material && c.material.color ? c.material.color : new THREE.Color(0x64748b),
+                        metalness: 0.88,
+                        roughness: 0.22,
+                        wireframe: false
+                    });
+                    meshes.push(c);
+                }
+            });
+        });
+
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        renderer.domElement.addEventListener('click', (e) => {
+            mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const hits = raycaster.intersectObjects(modelGroup.children, true);
+            if (hits.length > 0) {
+                const hitMesh = hits[0].object;
+                const panel = document.getElementById('inspector-panel');
+                const title = document.getElementById('insp-title');
+                const body = document.getElementById('insp-body');
+                if (panel && title && body) {
+                    panel.style.display = 'flex';
+                    title.textContent = hitMesh.name || "Outer Shell Component";
+                    body.textContent = `CAD Inspection Mesh: ${hitMesh.name || 'Structural Casing'}. Precision forged titanium/inconel outer layer.`;
+                }
+                const targetPos = new THREE.Vector3();
+                hitMesh.getWorldPosition(targetPos);
+                controls.target.lerp(targetPos, 0.6);
+            }
+        });
+
+        function resetCamera() {
+            camera.position.set(2.4, 1.0, 4.4);
+            controls.target.set(0, 0, 0);
+        }
+
+        function toggleWireframe() {
+            isWireframe = !isWireframe;
+            meshes.forEach(m => {
+                if (m.material) m.material.wireframe = isWireframe;
+            });
+        }
+
+        function toggleAutoRotate() {
+            controls.autoRotate = !controls.autoRotate;
+            controls.autoRotateSpeed = 2.5;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            modelGroup.rotation.z += 0.005; // Continuous outer spool rotation
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

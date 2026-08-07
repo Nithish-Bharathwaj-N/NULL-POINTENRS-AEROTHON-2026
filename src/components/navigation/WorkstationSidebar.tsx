@@ -5,6 +5,7 @@ import {
   Plane,
   FileText,
   Box,
+  Layers,
   Activity,
   Cpu,
   BrainCircuit,
@@ -45,12 +46,14 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Digital Twin',
     items: [
-      { id: 'twin', label: '3D Digital Twin', icon: Box, badge: 'CAD' },
+      { id: 'outer_twin', label: '3D Outer Layer', icon: Layers, badge: 'CAD' },
+      { id: 'twin', label: '3D Internal Twin', icon: Box, badge: 'CAD' },
       { id: 'telemetry', label: 'Live Telemetry', icon: Activity, badge: '1Hz' },
       { id: 'engine', label: 'Thermodynamics', icon: Cpu },
       { id: 'physics', label: 'Physics Models', icon: Atom },
     ],
   },
+
   {
     label: 'Intelligence',
     items: [

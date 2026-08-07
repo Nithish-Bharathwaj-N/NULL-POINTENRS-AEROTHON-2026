@@ -6,6 +6,7 @@ import {
   FleetView,
   DetailsView,
   TwinView,
+  OuterTwinView,
   TelemetryView,
   EngineAnalysisView,
   AiDiagnosticsView,
@@ -33,8 +34,11 @@ export const WorkstationPage: React.FC = React.memo(() => {
         return <FleetView />;
       case 'details':
         return <DetailsView />;
+      case 'outer_twin':
+        return <OuterTwinView />;
       case 'twin':
         return <TwinView />;
+
       case 'telemetry':
         return <TelemetryView />;
       case 'engine':

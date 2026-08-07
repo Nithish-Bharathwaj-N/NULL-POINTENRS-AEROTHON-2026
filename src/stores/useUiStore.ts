@@ -7,6 +7,7 @@ export type WorkstationViewId =
   | 'overview'
   | 'fleet'
   | 'details'
+  | 'outer_twin'
   | 'twin'
   | 'telemetry'
   | 'engine'
@@ -22,6 +23,7 @@ export type WorkstationViewId =
   | 'eventtimeline'
   | 'users'
   | 'settings';
+
 
 interface UiStoreState {
   currentView: WorkstationViewId;
