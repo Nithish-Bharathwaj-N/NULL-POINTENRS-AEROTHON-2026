@@ -12,6 +12,7 @@ if twin_dir not in sys.path:
 
 from engine_state import state_manager
 from ml.health_predictor import HealthPredictor
+from backend.ml.predict import HealthPredictor as KishoreHealthPredictor
 from physics_engine.physics_api import augment_with_physics
 from physics.physics_validator import PhysicsValidator
 from physics.physics_runtime import PhysicsRuntime
@@ -32,10 +33,12 @@ router = APIRouter(prefix="/api/v1/twin", tags=["AEROTWIN Digital Twin Service"]
 # ─── Global Service Instances ─────────────────────────────────────────────────
 data_path = os.path.join(twin_dir, "data", "turbojet_complete_dataset.csv")
 
-ml_predictor     = HealthPredictor.load()
+ml_predictor        = HealthPredictor.load()
+kishore_ml_predictor= KishoreHealthPredictor.load()
 telemetry_streamer = TelemetryStreamer(dataset_path=data_path)
-physics_runtime  = PhysicsRuntime()
-history_store    = get_global_store()
+physics_runtime     = PhysicsRuntime()
+history_store       = get_global_store()
+
 
 # ─── Lazy-loaded fleet analytics (heavy, loaded once on first request) ─────────
 _fleet_analytics = None
@@ -78,6 +81,13 @@ def process_active_frame(scenario_frame: dict, engine_id: str = "1", cycle: int 
 
     # 2. ML Predictions (RF models + optional hybrid)
     preds = ml_predictor.predict(scenario_frame)
+
+    # 2b. Kishore ML Predictor (Poly Ridge models + SHAP + Uncertainty + Risk + Service Actions)
+    try:
+        kishore_res = kishore_ml_predictor.predict_one(scenario_frame, include_shap=True)
+    except Exception as ex:
+        kishore_res = {"error": str(ex)}
+
 
     # 3. Member2 Analytical Physics Engine
     df_single = pd.DataFrame([scenario_frame])
@@ -212,8 +222,10 @@ def process_active_frame(scenario_frame: dict, engine_id: str = "1", cycle: int 
         "fleet_context":           fleet_ctx,
         "engineering_narrative":   narrative_brief,
         "aerospace_intelligence":  ai_result,
+        "kishore_ml":              kishore_res,
         "total_inference_ms":      elapsed_ms,
     }
+
 
 
 # ─── Standard Endpoints (backward-compatible) ─────────────────────────────────
@@ -231,7 +243,21 @@ def get_health():
         "dataset_max_cycles": int(telemetry_streamer.df["Cycle"].max()) if telemetry_streamer.df is not None else 0,
         "active_scenario": state_manager.active_scenario,
         "fleet_analytics_ready": _fleet_analytics is not None and _fleet_analytics.is_fitted_,
+        "kishore_ml_models": list(kishore_ml_predictor.models.keys()),
     }
+
+@router.post("/ml/predict")
+def predict_kishore_ml(sensor_reading: dict):
+    """
+    Kishore ML Model Inference Endpoint:
+    Returns transparent white-box predictions for all 6 targets (Compressor, Combustor, Turbine, Overall Health, Thrust_N, TSFC_g_N_s),
+    mathematical residual uncertainty, SHAP feature attributions, future damage risks, and service recommendations.
+    """
+    try:
+        return kishore_ml_predictor.predict_one(sensor_reading, include_shap=True)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Kishore ML prediction error: {str(e)}")
+
 
 @router.get("/logs")
 def get_mission_logs():

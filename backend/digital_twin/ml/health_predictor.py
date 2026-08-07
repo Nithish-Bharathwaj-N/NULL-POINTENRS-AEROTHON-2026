@@ -26,28 +26,8 @@ TARGET_COLUMNS = [
 
 MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "trained_models")
 
-def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Derive pressure ratios, temperature deltas, and corrected RPM for ML models."""
-    df = df.copy()
+from backend.ml.features import engineer_features
 
-    # Pressure Ratios
-    df["PR_compressor"] = df["P3_Pa"] / df["P2_Pa"].replace(0, np.nan)
-    df["PR_turbine"] = df["P3_Pa"] / df["P4_Pa"].replace(0, np.nan)
-    df["PR_overall"] = df["P4_Pa"] / df["Pamb_Pa"].replace(0, np.nan)
-
-    # Temperature Ratios & Deltas
-    df["TR_combustor"] = df["T3_K"] / df["T2_K"].replace(0, np.nan)
-    df["TR_turbine"] = df["T3_K"] / df["T4_K"].replace(0, np.nan)
-    df["delta_T_compressor"] = df["T2_K"] - df["Tamb_K"]
-    df["delta_T_combustor"] = df["T3_K"] - df["T2_K"]
-    df["delta_T_turbine"] = df["T3_K"] - df["T4_K"]
-
-    # Aerodynamic Corrected Features
-    theta = df["Tamb_K"] / 288.15
-    df["RPM_corrected"] = df["RPM_rev_min"] / np.sqrt(theta.replace(0, np.nan))
-    df["FuelFlow_per_RPM"] = df["FuelFlow_kg_s"] / df["RPM_rev_min"].replace(0, np.nan)
-
-    return df.fillna(0.0)
 
 class HealthPredictor:
     """Wraps all six trained Scikit-learn models behind a unified .predict() interface."""
