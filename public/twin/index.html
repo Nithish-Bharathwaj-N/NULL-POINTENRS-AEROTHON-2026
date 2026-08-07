@@ -250,6 +250,13 @@
         <div class="sh-sub" id="sh-physics" style="margin-top:5px; color:#38bdf8;">ω 0.0 rad/s · τ<sub>net</sub> 0.0 N·m</div>
     </div>
 
+    <!-- HIGH-TECH AEROSPACE VIEW TRANSITION OVERLAY -->
+    <div id="view-transition-flash" style="position: absolute; inset: 0; pointer-events: none; z-index: 9999; background: radial-gradient(circle, rgba(56,189,248,0.25) 0%, rgba(6,9,17,0.92) 100%); opacity: 0; transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; font-weight: 800; color: #38bdf8; letter-spacing: 2.5px; text-shadow: 0 0 16px rgba(56,189,248,0.8); background: rgba(8,14,26,0.85); padding: 10px 24px; border: 1px solid rgba(56,189,248,0.5); border-radius: 8px;" id="transition-flash-text">
+            🔬 TRANSITIONING TO INTERNAL DIGITAL TWIN...
+        </div>
+    </div>
+
     <!-- DUAL 3D DIGITAL TWIN VIEWPORT BANNER (OUTER AIRFRAME SHELL vs INTERNAL ENGINE) -->
     <div id="twin-viewmode-banner" onclick="toggleTwinViewMode()" style="position: absolute; top: 18px; left: 50%; transform: translateX(-50%); z-index: 50; cursor: pointer; background: rgba(8, 14, 26, 0.92); padding: 8px 18px; border: 1px solid rgba(56, 189, 248, 0.45); border-radius: 20px; backdrop-filter: blur(12px); box-shadow: 0 0 24px rgba(56, 189, 248, 0.35); display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #f8fafc; transition: all 0.25s ease;">
         <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#38bdf8; box-shadow:0 0 8px #38bdf8;"></span>
@@ -978,44 +985,58 @@ new THREE.GLTFLoader().load('./Turbojetdemo.glb', (gltf) => {
 
 const savedViewMode = localStorage.getItem('AEROTWIN_VIEWMODE') || 'OUTER';
 E.TwinViewMode = savedViewMode;
-setTwinViewMode(savedViewMode);
+setTwinViewMode(savedViewMode, true);
 
 function toggleTwinViewMode() {
     setTwinViewMode(E.TwinViewMode === 'OUTER' ? 'INTERNAL' : 'OUTER');
 }
 
-function setTwinViewMode(mode) {
-    E.TwinViewMode = mode;
-    try { localStorage.setItem('AEROTWIN_VIEWMODE', mode); } catch(e) {}
+function setTwinViewMode(mode, skipAnim) {
     const isOuter = mode === 'OUTER';
+    const flashEl = document.getElementById('view-transition-flash');
+    const flashText = document.getElementById('transition-flash-text');
 
-    outerGrp.visible = isOuter;
-    eGrp.visible = !isOuter;
+    const applyState = () => {
+        E.TwinViewMode = mode;
+        try { localStorage.setItem('AEROTWIN_VIEWMODE', mode); } catch(e) {}
 
-    if (typeof flameGrp !== 'undefined') flameGrp.visible = !isOuter && E.FlameOn;
-    if (typeof fuelSpray !== 'undefined') fuelSpray.visible = !isOuter && E.cRPM > 500;
-    if (typeof zones !== 'undefined') {
-        zones.forEach(z => { if (z.ps && z.ps.material) z.ps.material.opacity = !isOuter && E.cRPM > 100 ? 0.45 : 0.0; });
+        outerGrp.visible = isOuter;
+        eGrp.visible = !isOuter;
+
+        if (typeof flameGrp !== 'undefined') flameGrp.visible = !isOuter && E.FlameOn;
+        if (typeof fuelSpray !== 'undefined') fuelSpray.visible = !isOuter && E.cRPM > 500;
+        if (typeof zones !== 'undefined') {
+            zones.forEach(z => { if (z.ps && z.ps.material) z.ps.material.opacity = !isOuter && E.cRPM > 100 ? 0.45 : 0.0; });
+        }
+
+        const banner = document.getElementById('twin-viewmode-banner');
+        if (banner) {
+            banner.innerHTML = isOuter
+                ? `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#38bdf8; box-shadow:0 0 8px #38bdf8;"></span>
+                   <span>🛩️ AIRFORCE EXTERIOR ENGINE SHELL (Turbojetdemo)</span>
+                   <span style="padding: 4px 12px; background: #0284c7; color: #ffffff; border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">ENTER INSIDE ENGINE 🔍</span>`
+                : `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e;"></span>
+                   <span>🔬 INTERNAL 46-COMPONENT DIGITAL TWIN ACTIVE</span>
+                   <span style="padding: 4px 12px; background: #334155; color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">⬅ BACK TO AIRFORCE EXTERIOR VIEW</span>`;
+        }
+        // Exact 3D camera coordinates & target point preserved seamlessly without resetting!
+    };
+
+    if (skipAnim || !flashEl) {
+        applyState();
+        return;
     }
 
-    const banner = document.getElementById('twin-viewmode-banner');
-    if (banner) {
-        banner.innerHTML = isOuter
-            ? `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#38bdf8; box-shadow:0 0 8px #38bdf8;"></span>
-               <span>🛩️ AIRFORCE EXTERIOR ENGINE SHELL (Turbojetdemo)</span>
-               <span style="padding: 4px 12px; background: #0284c7; color: #ffffff; border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">ENTER INSIDE ENGINE 🔍</span>`
-            : `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e;"></span>
-               <span>🔬 INTERNAL 46-COMPONENT DIGITAL TWIN ACTIVE</span>
-               <span style="padding: 4px 12px; background: #334155; color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">⬅ BACK TO AIRFORCE EXTERIOR VIEW</span>`;
+    if (flashText) {
+        flashText.textContent = isOuter ? "🛩️ RESTORING AIRFORCE EXTERIOR ENGINE SHELL..." : "🔬 DIVING INTO INTERNAL 46-COMPONENT DIGITAL TWIN...";
     }
-
-    if (isOuter) {
-        cam.position.set(-2.4, 1.0, 4.4); // 270 degree view angle
-        orb.target.set(0, 0, 0);
-    } else {
-        cam.position.set(-2.2, 0.9, 3.8); // 270 degree view angle
-        orb.target.set(0, 0, 0);
-    }
+    flashEl.style.opacity = '1';
+    setTimeout(() => {
+        applyState();
+        setTimeout(() => {
+            flashEl.style.opacity = '0';
+        }, 150);
+    }, 150);
 }
 
 
