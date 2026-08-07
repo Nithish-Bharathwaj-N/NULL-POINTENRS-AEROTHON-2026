@@ -950,36 +950,15 @@ new THREE.GLTFLoader().load('./Turbojetdemo.glb', (gltf) => {
     outerGrp.add(om);
     om.traverse((c) => {
         if (c.isMesh) {
-            const n = c.name;
-            let matColor = new THREE.Color(0x1e293b); // Dark Obsidian Titanium Alloy Base
-            let metal = 0.92, rough = 0.18;
-
-            if (n.includes('Object_2') || n.includes('Object_3') || n.includes('Nozzle') || n.includes('Exhaust')) {
-                // Burnished Gold / Titanium Oxide Heat Section
-                matColor = new THREE.Color(0xd97706);
-                metal = 0.90; rough = 0.22;
-            } else if (n.includes('Object_4') || n.includes('Object_5') || n.includes('Object_8') || n.includes('Ring') || n.includes('Flange')) {
-                // Anodized Cobalt Cyan Metallic Accent Rings
-                matColor = new THREE.Color(0x0284c7);
-                metal = 0.95; rough = 0.12;
-            } else if (n.includes('Object_14') || n.includes('Object_11') || n.includes('Object_6') || n.includes('Object_13') || n.includes('Fan') || n.includes('Blade')) {
-                // Polished Chrome Titanium / Diamond Steel Blades
-                matColor = new THREE.Color(0x38bdf8);
-                metal = 0.98; rough = 0.08;
+            if (c.material) {
+                c.material.needsUpdate = true;
             }
-
-            c.material = new THREE.MeshStandardMaterial({
-                color: matColor,
-                metalness: metal,
-                roughness: rough,
-                envMapIntensity: 1.5
-            });
             outerMeshes.push(c);
+            const n = c.name;
             // ONLY front fan blades, fan hub, and rotor spools rotate! Outer casing shell remains completely fixed!
             if (n.includes('Object_14') || n.includes('Object_11') || n.includes('Object_6') || n.includes('Object_13') || n.includes('Object_7') || n.includes('Fan') || n.includes('Blade') || n.includes('Hub') || n.includes('Cone')) {
                 outerLpRotors.push(c); // ONLY the front fan & rotors spin!
             }
-
         }
     });
     outerGrp.visible = (E.TwinViewMode === 'OUTER');
