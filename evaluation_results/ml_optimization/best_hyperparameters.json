@@ -1,0 +1,68 @@
+{
+  "CompressorHealth": {
+    "learning_rate": 0.06780243601538333,
+    "max_depth": 4,
+    "num_leaves": 15,
+    "n_estimators": 247,
+    "subsample": 0.6481634257170517,
+    "feature_fraction": 0.8648533363741441,
+    "reg_alpha": 0.005936720971534512,
+    "reg_lambda": 1.2481532531084421e-07,
+    "min_child_samples": 12
+  },
+  "CombustorHealth": {
+    "learning_rate": 0.038253106663520955,
+    "max_depth": 7,
+    "num_leaves": 13,
+    "n_estimators": 164,
+    "subsample": 0.9603720910757577,
+    "feature_fraction": 0.9607207549521679,
+    "reg_alpha": 9.754583413622618e-08,
+    "reg_lambda": 2.644052798771461,
+    "min_child_samples": 6
+  },
+  "TurbineHealth": {
+    "learning_rate": 0.019099124373257344,
+    "max_depth": 2,
+    "num_leaves": 30,
+    "n_estimators": 151,
+    "subsample": 0.6460694154460409,
+    "feature_fraction": 0.96274892269368,
+    "reg_alpha": 0.0006498948258777665,
+    "reg_lambda": 8.54710328914542e-05,
+    "min_child_samples": 17
+  },
+  "OverallHealth": {
+    "learning_rate": 0.03311717795888675,
+    "max_depth": 7,
+    "num_leaves": 47,
+    "n_estimators": 188,
+    "subsample": 0.7756889329027902,
+    "feature_fraction": 0.918886092700215,
+    "reg_alpha": 0.0006086168467898971,
+    "reg_lambda": 1.0611834382721333e-07,
+    "min_child_samples": 16
+  },
+  "Thrust_N": {
+    "learning_rate": 0.04887401949189474,
+    "max_depth": 3,
+    "num_leaves": 51,
+    "n_estimators": 225,
+    "subsample": 0.8312635382093142,
+    "feature_fraction": 0.9519970809120617,
+    "reg_alpha": 1.763462266014722e-07,
+    "reg_lambda": 8.815782748619737e-06,
+    "min_child_samples": 7
+  },
+  "TSFC_g_N_s": {
+    "learning_rate": 0.04951918009353935,
+    "max_depth": 2,
+    "num_leaves": 48,
+    "n_estimators": 255,
+    "subsample": 0.5930559684622393,
+    "feature_fraction": 0.7081576448120539,
+    "reg_alpha": 5.67246188687379e-05,
+    "reg_lambda": 0.005930674887818206,
+    "min_child_samples": 2
+  }
+}

@@ -13,8 +13,8 @@ from backend.ml.features import ENGINEERED_COLUMNS
 # ---------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
-DATA_DIR = PROJECT_ROOT / "PS_2_final_dataset"
-EXTRA_DATA_DIR = PROJECT_ROOT / "PS2_dataset"
+DATA_DIR = PROJECT_ROOT / "public" / "dataset"
+EXTRA_DATA_DIR = PROJECT_ROOT / "backend" / "digital_twin" / "data"
 MODELS_DIR = PROJECT_ROOT / "trained_models"
 RESULTS_DIR = PROJECT_ROOT / "results"
 
@@ -33,8 +33,34 @@ RAW_FEATURE_COLUMNS = [
     "P2_Pa", "T2_K", "P3_Pa", "T3_K", "P4_Pa", "T4_K",
 ]
 
-# Total input feature set: raw sensors + derived physical ratios/deltas
-FEATURE_COLUMNS = RAW_FEATURE_COLUMNS + ENGINEERED_COLUMNS
+# Health targets correlate strongly with engine usage count (Cycle, r = -0.96)
+HEALTH_FEATURE_COLUMNS = RAW_FEATURE_COLUMNS + ["Cycle"]
+
+# Performance targets depend on flight condition and thermodynamic state
+PERFORMANCE_FEATURE_COLUMNS = RAW_FEATURE_COLUMNS
+
+# Target-specific feature maps
+TARGET_FEATURE_COLUMNS = {
+    "CompressorHealth": HEALTH_FEATURE_COLUMNS,
+    "CombustorHealth": HEALTH_FEATURE_COLUMNS,
+    "TurbineHealth": HEALTH_FEATURE_COLUMNS,
+    "OverallHealth": HEALTH_FEATURE_COLUMNS,
+    "Thrust_N": PERFORMANCE_FEATURE_COLUMNS,
+    "TSFC_g_N_s": PERFORMANCE_FEATURE_COLUMNS,
+}
+
+# Total fallback feature set
+FEATURE_COLUMNS = RAW_FEATURE_COLUMNS + ["Cycle"]
+
+# Per-target tuned Ridge regularization strength (alpha)
+TARGET_ALPHA = {
+    "CompressorHealth": 10.0,
+    "CombustorHealth": 1.0,
+    "TurbineHealth": 10.0,
+    "OverallHealth": 10.0,
+    "Thrust_N": 0.1,
+    "TSFC_g_N_s": 0.1,
+}
 
 # The target variables predicted by our transparent ML models
 TARGET_COLUMNS = [
@@ -62,9 +88,9 @@ BEST_TRANSPARENT_MODELS = {
     "TSFC_g_N_s": "poly_ridge",
 }
 
+
 # The columns used to match sensor rows to their true labels.
 JOIN_KEYS = ["EngineID", "Cycle"]
 
 RANDOM_SEED = 42
-
 

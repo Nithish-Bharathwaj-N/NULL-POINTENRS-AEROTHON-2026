@@ -1507,151 +1507,157 @@ export const BatchExcelAccuracyCalculator: React.FC = React.memo(() => {
   const accuracyReport = useMemo(() => {
     if (!predictedRows.length || !groundTruthData || groundTruthData.length === 0) return null;
 
-    // ── Build keyed ground truth map: (EngineID, Cycle) → row ──────────────
-    // FIX: match by EngineID+Cycle, NOT by array index (order may differ)
-    const gtMap = new Map<string, typeof groundTruthData[0]>();
-    for (const gtRow of groundTruthData) {
-      const getKeyVal = (row: any, keys: string[]): string => {
-        for (const k of Object.keys(row)) {
-          if (keys.some(key => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(key))) {
-            return String(row[k]).replace(/,/g, '').trim();
+    try {
+      // ── Build keyed ground truth map: (EngineID, Cycle) → row ──────────────
+      const gtMap = new Map<string, typeof groundTruthData[0]>();
+      for (const gtRow of groundTruthData) {
+        const getKeyVal = (row: any, keys: string[]): string => {
+          if (!row || typeof row !== 'object') return '';
+          for (const k of Object.keys(row)) {
+            if (keys.some(key => k.toLowerCase().replace(/[^a-z0-9]/g, '').includes(key))) {
+              return String(row[k]).replace(/,/g, '').trim();
+            }
           }
+          return '';
+        };
+        const engKey = getKeyVal(gtRow, ['engineid', 'engid', 'engine']);
+        const cycKey = getKeyVal(gtRow, ['cycle']);
+        if (engKey || cycKey) {
+          gtMap.set(`${engKey}_${cycKey}`, gtRow);
         }
-        return '';
-      };
-      const engKey = getKeyVal(gtRow, ['engineid', 'engid', 'engine']);
-      const cycKey = getKeyVal(gtRow, ['cycle']);
-      if (engKey || cycKey) {
-        gtMap.set(`${engKey}_${cycKey}`, gtRow);
       }
-    }
 
-    let sumCompErr = 0, sumCombErr = 0, sumTurbErr = 0, sumOverallErr = 0, sumThrustErr = 0, sumTsfcErr = 0;
-    let sumCompTrue = 0, sumCombTrue = 0, sumTurbTrue = 0, sumOverallTrue = 0;
-    let phmScore = 0;
-    const rowComparisons: any[] = [];
+      const n = Math.min(predictedRows.length, groundTruthData.length);
+      if (n === 0) return null;
 
+      let sumCompErr = 0, sumCombErr = 0, sumTurbErr = 0, sumOverallErr = 0, sumThrustErr = 0, sumTsfcErr = 0;
+      let sumCompTrue = 0, sumCombTrue = 0, sumTurbTrue = 0, sumOverallTrue = 0;
+      let phmScore = 0;
+      const rowComparisons: any[] = [];
 
-    // ── Pure Original ML Calculated Values (No Proxy Values or Overrides) ───
+      for (let i = 0; i < n; i++) {
+        const p = predictedRows[i];
+        if (!p) continue;
+        const gtKey = `${p.engineId}_${p.cycle}`;
+        const t = gtMap.has(gtKey) ? gtMap.get(gtKey)! : groundTruthData[i];
+        if (!t) continue;
 
-    for (let i = 0; i < n; i++) {
-      const p = predictedRows[i];
-      const gtKey = `${p.engineId}_${p.cycle}`;
-      const t = gtMap.has(gtKey) ? gtMap.get(gtKey)! : groundTruthData[i];
-
-      const getTruthVal = (keys: string[], fallback: number): number => {
-        for (const k of Object.keys(t)) {
-          const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-          for (const targetK of keys) {
-            if (cleanK.includes(targetK.toLowerCase().replace(/[^a-z0-9]/g, ''))) {
-              const rawVal = t[k];
-              if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
-                const cleaned = String(rawVal).replace(/,/g, '').replace(/%/g, '').replace(/K/gi, '').replace(/N/gi, '').replace(/Pa/gi, '').trim();
-                const num = parseFloat(cleaned);
-                if (!isNaN(num)) return num > 1.0 && num <= 100.0 ? num / 100.0 : num;
+        const getTruthVal = (keys: string[], fallback: number): number => {
+          if (!t || typeof t !== 'object') return fallback;
+          for (const k of Object.keys(t)) {
+            const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+            for (const targetK of keys) {
+              if (cleanK.includes(targetK.toLowerCase().replace(/[^a-z0-9]/g, ''))) {
+                const rawVal = t[k];
+                if (rawVal !== undefined && rawVal !== null && rawVal !== '') {
+                  const cleaned = String(rawVal).replace(/,/g, '').replace(/%/g, '').replace(/K/gi, '').replace(/N/gi, '').replace(/Pa/gi, '').trim();
+                  const num = parseFloat(cleaned);
+                  if (!isNaN(num)) return num > 1.0 && num <= 100.0 ? num / 100.0 : num;
+                }
               }
             }
           }
-        }
-        return fallback;
+          return fallback;
+        };
+
+        const trueComp    = getTruthVal(['comphealth', 'compressorhealth'], p.predComp);
+        const trueComb    = getTruthVal(['combhealth', 'combustorhealth'], p.predComb);
+        const trueTurb    = getTruthVal(['turbhealth', 'turbinehealth'], p.predTurb);
+        const trueOverall = getTruthVal(['overallhealth'], p.predOverall);
+        const trueThrust  = getTruthVal(['thrust'], p.predThrust);
+        const trueTsfc    = getTruthVal(['tsfc'], p.predTSFC);
+
+        const predOverall = p.predOverall ?? 0.85;
+        const predComp    = p.predComp ?? 0.85;
+        const predComb    = p.predComb ?? 0.85;
+        const predTurb    = p.predTurb ?? 0.85;
+        const predThrust  = p.predThrust ?? 50000;
+        const predTsfc    = p.predTSFC ?? 0.5;
+
+        const errComp    = Math.abs(predComp - trueComp);
+        const errComb    = Math.abs(predComb - trueComb);
+        const errTurb    = Math.abs(predTurb - trueTurb);
+        const errOverall = Math.abs(predOverall - trueOverall);
+        const errThrust  = Math.abs(predThrust - trueThrust);
+        const errTsfc    = Math.abs(predTsfc - trueTsfc);
+
+        const d = errOverall >= 0 ? errOverall / 13 : -errOverall / 10;
+        phmScore += Math.exp(d) - 1;
+
+        sumCompErr += errComp;
+        sumCombErr += errComb;
+        sumTurbErr += errTurb;
+        sumOverallErr += errOverall;
+        sumThrustErr += errThrust;
+        sumTsfcErr += errTsfc;
+
+        sumCompTrue += trueComp;
+        sumCombTrue += trueComb;
+        sumTurbTrue += trueTurb;
+        sumOverallTrue += trueOverall;
+
+        rowComparisons.push({
+          row: i + 1,
+          engineId: p.engineId,
+          cycle: p.cycle,
+          trueOverall,
+          predOverall,
+          overallErr: errOverall,
+          overallAcc: Math.max(0, (1.0 - errOverall) * 100),
+          trueThrust,
+          predThrust,
+          thrustErr: errThrust,
+        });
+      }
+
+      const validN = Math.max(1, rowComparisons.length);
+      const maeComp    = sumCompErr / validN;
+      const maeComb    = sumCombErr / validN;
+      const maeTurb    = sumTurbErr / validN;
+      const maeOverall = sumOverallErr / validN;
+      const maeThrust  = sumThrustErr / validN;
+      const maeTsfc    = sumTsfcErr / validN;
+
+      const calcAccuracy = (mae: number): number => Math.max(0, (1.0 - mae) * 100);
+
+      const accComp    = calcAccuracy(maeComp);
+      const accComb    = calcAccuracy(maeComb);
+      const accTurb    = calcAccuracy(maeTurb);
+      const accOverall = calcAccuracy(maeOverall);
+
+      const overallAvgAcc = (accComp * 0.35 + accComb * 0.30 + accTurb * 0.35);
+
+      const meanOverallTrue = sumOverallTrue / validN;
+      let ssRes = 0, ssTot = 0;
+      for (const rc of rowComparisons) {
+        ssRes += Math.pow(rc.trueOverall - rc.predOverall, 2);
+        ssTot += Math.pow(rc.trueOverall - meanOverallTrue, 2);
+      }
+      const r2Overall = ssTot > 1e-6 ? (1.0 - (ssRes / ssTot)) : 0.0;
+      const phmAccuracy = Math.max(0, 100 * Math.exp(-phmScore / (validN * 5)));
+
+      return {
+        numRows: validN,
+        overallAvgAcc: overallAvgAcc.toFixed(2),
+        phmAccuracy: phmAccuracy.toFixed(2),
+        r2Score: r2Overall.toFixed(3),
+        maeOverall: maeOverall.toFixed(4),
+        accComp: accComp.toFixed(2),
+        accComb: accComb.toFixed(2),
+        accTurb: accTurb.toFixed(2),
+        accOverall: accOverall.toFixed(2),
+        maeComp: maeComp.toFixed(4),
+        maeComb: maeComb.toFixed(4),
+        maeTurb: maeTurb.toFixed(4),
+        maeThrust: maeThrust.toFixed(1),
+        rowComparisons,
       };
-
-      const trueComp    = getTruthVal(['comphealth', 'compressorhealth'], p.predComp);
-      const trueComb    = getTruthVal(['combhealth', 'combustorhealth'], p.predComb);
-      const trueTurb    = getTruthVal(['turbhealth', 'turbinehealth'], p.predTurb);
-      const trueOverall = getTruthVal(['overallhealth'], p.predOverall);
-      const trueThrust  = getTruthVal(['thrust'], p.predThrust);
-      const trueTsfc    = getTruthVal(['tsfc'], p.predTSFC);
-
-      // Pure ML Predictions (from trained TwinX ML pipeline)
-      const predOverall = p.predOverall;
-      const predComp    = p.predComp;
-      const predComb    = p.predComb;
-      const predTurb    = p.predTurb;
-      const predThrust  = p.predThrust;
-      const predTsfc    = p.predTSFC;
-
-      const errComp    = Math.abs(predComp - trueComp);
-      const errComb    = Math.abs(predComb - trueComb);
-      const errTurb    = Math.abs(predTurb - trueTurb);
-      const errOverall = Math.abs(predOverall - trueOverall);
-      const errThrust  = Math.abs(predThrust - trueThrust);
-      const errTsfc    = Math.abs(predTsfc - trueTsfc);
-
-      const d = errOverall >= 0 ? errOverall / 13 : -errOverall / 10;
-      phmScore += Math.exp(d) - 1;
-
-      sumCompErr += errComp;
-      sumCombErr += errComb;
-      sumTurbErr += errTurb;
-      sumOverallErr += errOverall;
-      sumThrustErr += errThrust;
-      sumTsfcErr += errTsfc;
-
-      sumCompTrue += trueComp;
-      sumCombTrue += trueComb;
-      sumTurbTrue += trueTurb;
-      sumOverallTrue += trueOverall;
-
-      rowComparisons.push({
-        row: i + 1,
-        engineId: p.engineId,
-        cycle: p.cycle,
-        trueOverall,
-        predOverall,
-        overallErr: errOverall,
-        overallAcc: Math.max(0, (1.0 - errOverall) * 100),
-        trueThrust,
-        predThrust,
-        thrustErr: errThrust,
-      });
+    } catch (err) {
+      console.error('[BatchCalculator Error]', err);
+      return null;
     }
-
-    const maeComp    = sumCompErr / n;
-    const maeComb    = sumCombErr / n;
-    const maeTurb    = sumTurbErr / n;
-    const maeOverall = sumOverallErr / n;
-    const maeThrust  = sumThrustErr / n;
-    const maeTsfc    = sumTsfcErr / n;
-
-    // Standard Accuracy: 100% - MAE
-    const calcAccuracy = (mae: number): number => Math.max(0, (1.0 - mae) * 100);
-
-    const accComp    = calcAccuracy(maeComp);
-    const accComb    = calcAccuracy(maeComb);
-    const accTurb    = calcAccuracy(maeTurb);
-    const accOverall = calcAccuracy(maeOverall);
-
-    const overallAvgAcc = (accComp * 0.35 + accComb * 0.30 + accTurb * 0.35);
-
-    // Standard R² Score (Coefficient of Determination)
-    const meanOverallTrue = sumOverallTrue / n;
-    let ssRes = 0, ssTot = 0;
-    for (const rc of rowComparisons) {
-      ssRes += Math.pow(rc.trueOverall - rc.predOverall, 2);
-      ssTot += Math.pow(rc.trueOverall - meanOverallTrue, 2);
-    }
-    const r2Overall = ssTot > 1e-6 ? (1.0 - (ssRes / ssTot)) : 0.0;
-
-    const phmAccuracy = Math.max(0, 100 * Math.exp(-phmScore / (n * 5)));
-
-    return {
-      numRows: n,
-      overallAvgAcc: overallAvgAcc.toFixed(2),
-      phmAccuracy: phmAccuracy.toFixed(2),
-      r2Score: r2Overall.toFixed(3),
-      maeOverall: maeOverall.toFixed(4),
-      accComp: accComp.toFixed(2),
-      accComb: accComb.toFixed(2),
-      accTurb: accTurb.toFixed(2),
-      accOverall: accOverall.toFixed(2),
-      maeComp: maeComp.toFixed(4),
-      maeComb: maeComb.toFixed(4),
-      maeTurb: maeTurb.toFixed(4),
-      maeThrust: maeThrust.toFixed(1),
-      rowComparisons,
-    };
   }, [predictedRows, groundTruthData]);
+
 
 
 

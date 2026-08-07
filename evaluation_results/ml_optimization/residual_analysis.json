@@ -1,0 +1,178 @@
+{
+  "worst_engines": {
+    "1": 211.88856432230142,
+    "9": 211.5341986807117,
+    "3": 204.69865989253984,
+    "10": 188.31041677987648,
+    "5": 180.86464330301646
+  },
+  "worst_cycles": {
+    "25": 268.5428358706412,
+    "17": 266.5480358150971,
+    "24": 240.4068743184072,
+    "3": 222.39522624568022,
+    "27": 221.96090704300605
+  },
+  "largest_residuals": [
+    {
+      "target": "Thrust_N",
+      "EngineID": 1,
+      "Cycle": 11,
+      "actual": 61851.203305542025,
+      "prediction": 66570.99298521629,
+      "abs_residual": 4719.789679674264
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 9,
+      "Cycle": 16,
+      "actual": 24317.36795272657,
+      "prediction": 28530.383354920617,
+      "abs_residual": 4213.015402194047
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 3,
+      "Cycle": 27,
+      "actual": 30301.66311649497,
+      "prediction": 26295.23073953056,
+      "abs_residual": 4006.432376964407
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 2,
+      "Cycle": 25,
+      "actual": 24072.96893907843,
+      "prediction": 28068.26588251516,
+      "abs_residual": 3995.2969434367296
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 9,
+      "Cycle": 26,
+      "actual": 77223.35657072926,
+      "prediction": 81090.4227695814,
+      "abs_residual": 3867.066198852146
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 4,
+      "Cycle": 25,
+      "actual": 37793.15833679785,
+      "prediction": 34269.436428611385,
+      "abs_residual": 3523.7219081864678
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 1,
+      "Cycle": 22,
+      "actual": 47988.030090582,
+      "prediction": 44556.776294394425,
+      "abs_residual": 3431.2537961875714
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 3,
+      "Cycle": 15,
+      "actual": 77227.77363119667,
+      "prediction": 73915.51285571953,
+      "abs_residual": 3312.260775477145
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 10,
+      "Cycle": 2,
+      "actual": 23957.544872650666,
+      "prediction": 27266.22231352132,
+      "abs_residual": 3308.677440870655
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 8,
+      "Cycle": 18,
+      "actual": 18956.16352569301,
+      "prediction": 22264.68485288389,
+      "abs_residual": 3308.5213271908797
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 5,
+      "Cycle": 30,
+      "actual": 34422.20460175665,
+      "prediction": 31243.18406314614,
+      "abs_residual": 3179.0205386105154
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 9,
+      "Cycle": 1,
+      "actual": 31787.537500341507,
+      "prediction": 28774.052448521674,
+      "abs_residual": 3013.4850518198327
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 1,
+      "Cycle": 27,
+      "actual": 68726.46658425753,
+      "prediction": 71658.39009165775,
+      "abs_residual": 2931.923507400221
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 8,
+      "Cycle": 27,
+      "actual": 37157.78333078578,
+      "prediction": 34231.48596606232,
+      "abs_residual": 2926.297364723461
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 5,
+      "Cycle": 21,
+      "actual": 88729.32082234297,
+      "prediction": 85883.90106414186,
+      "abs_residual": 2845.419758201111
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 9,
+      "Cycle": 12,
+      "actual": 53526.73705304184,
+      "prediction": 50690.12577108461,
+      "abs_residual": 2836.61128195723
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 4,
+      "Cycle": 13,
+      "actual": 27000.559136038257,
+      "prediction": 29746.50899680444,
+      "abs_residual": 2745.9498607661844
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 8,
+      "Cycle": 3,
+      "actual": 25345.84639737516,
+      "prediction": 22616.55755720091,
+      "abs_residual": 2729.2888401742493
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 3,
+      "Cycle": 30,
+      "actual": 30247.567113917507,
+      "prediction": 27577.07380114062,
+      "abs_residual": 2670.4933127768854
+    },
+    {
+      "target": "Thrust_N",
+      "EngineID": 5,
+      "Cycle": 7,
+      "actual": 69206.83078411153,
+      "prediction": 66569.18168843462,
+      "abs_residual": 2637.649095676912
+    }
+  ]
+}

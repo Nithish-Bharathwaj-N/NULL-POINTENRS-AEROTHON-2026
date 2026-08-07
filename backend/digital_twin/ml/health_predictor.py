@@ -38,12 +38,19 @@ class HealthPredictor:
 
     @classmethod
     def load(cls) -> "HealthPredictor":
+        target_feature_path = os.path.join(MODELS_DIR, "target_feature_columns.json")
         feature_path = os.path.join(MODELS_DIR, "feature_columns.json")
-        if not os.path.exists(feature_path):
-            raise FileNotFoundError(f"Feature columns metadata not found at {feature_path}")
 
-        with open(feature_path, "r") as f:
-            feature_columns = json.load(f)
+        target_feature_columns = {}
+        if os.path.exists(target_feature_path):
+            with open(target_feature_path, "r") as f:
+                target_feature_columns = json.load(f)
+
+        if os.path.exists(feature_path):
+            with open(feature_path, "r") as f:
+                feature_columns = json.load(f)
+        else:
+            feature_columns = ["Altitude_m", "Mach", "Tamb_K", "Pamb_Pa", "RPM_rev_min", "FuelFlow_kg_s", "P2_Pa", "T2_K", "P3_Pa", "T3_K", "P4_Pa", "T4_K", "Cycle"]
 
         models = {}
         for target in TARGET_COLUMNS:
@@ -53,17 +60,18 @@ class HealthPredictor:
             else:
                 print(f"Warning: Model for {target} not found at {model_path}")
 
-        return cls(models, feature_columns)
+        hp = cls(models, feature_columns)
+        hp.target_feature_columns = target_feature_columns
+        return hp
 
     def normalize_input(self, raw: dict) -> dict:
-        """Map flexible telemetry keys to the 12 standard raw sensor names."""
+        """Map flexible telemetry keys to standard raw sensor names + Cycle."""
         def get_val(keys, default):
             for k in keys:
                 if k in raw and raw[k] is not None:
                     return float(raw[k])
             return default
 
-        # Temperatures (convert C -> K if needed)
         t_amb = get_val(["Tamb_K", "Ambient_Temperature"], -45.0)
         if t_amb < 150: t_amb += 273.15
 
@@ -76,7 +84,6 @@ class HealthPredictor:
         t4 = get_val(["T4_K", "Turbine_Exit_Temperature_T4"], 1030.0)
         if t4 < 150: t4 += 273.15
 
-        # Pressures (convert bar/psi -> Pa if needed)
         p_amb = get_val(["Pamb_Pa", "Ambient_Pressure"], 3.9)
         if p_amb < 1000: p_amb *= 101325.0 / 14.7
 
@@ -89,11 +96,12 @@ class HealthPredictor:
         p4 = get_val(["P4_Pa", "Turbine_Exit_Pressure_P4"], 14.5)
         if p4 < 1000: p4 *= 6894.76
 
-        # Fuel Flow (convert kg/h -> kg/s if needed)
         ff = get_val(["FuelFlow_kg_s", "Fuel_Flow"], 3.45)
         if ff > 10.0: ff /= 3600.0
 
         return {
+            "EngineID": get_val(["EngineID"], 0.0),
+            "Cycle": get_val(["Cycle", "cycle"], 1.0),
             "Altitude_m": get_val(["Altitude_m", "Altitude"], 30000.0),
             "Mach": get_val(["Mach"], 0.78),
             "Tamb_K": t_amb,
@@ -108,59 +116,60 @@ class HealthPredictor:
             "T4_K": t4,
         }
 
+    def _prepare_input_for_target(self, df: pd.DataFrame, target: str) -> pd.DataFrame:
+        cols = getattr(self, "target_feature_columns", {}).get(target, self.feature_columns)
+        prepared = df.copy()
+        for c in cols:
+            if c not in prepared:
+                prepared[c] = 0.0
+        missing = [c for c in cols if c not in prepared]
+        if missing:
+            engineered = engineer_features(prepared)
+            for c in missing:
+                if c in engineered:
+                    prepared[c] = engineered[c]
+        return prepared[cols]
+
     def predict(self, raw_telemetry: dict) -> dict:
         normalized = self.normalize_input(raw_telemetry)
         df_single = pd.DataFrame([normalized])
-        df_feat = engineer_features(df_single)
-        X = df_feat[self.feature_columns]
 
         res = {}
         for target, model in self.models.items():
+            X = self._prepare_input_for_target(df_single, target)
             pred = float(model.predict(X)[0])
-            
-            # Uncertainty estimation via tree ensemble variance (std dev across 300 decision trees)
+
             if hasattr(model, "estimators_"):
                 tree_preds = np.array([tree.predict(X)[0] for tree in model.estimators_])
                 unc = float(tree_preds.std())
             else:
-                unc = 0.05 * pred
+                residual_std = getattr(model, "_residual_std", 0.01)
+                unc = float(residual_std)
 
             res[target] = {
                 "prediction": pred,
                 "uncertainty": unc
             }
 
-        # Calculate health metrics: Prioritize dataset ground truth telemetry if present, else ML prediction
-        comp_gt = raw_telemetry.get("CompressorHealth", None)
-        comb_gt = raw_telemetry.get("CombustorHealth", None)
-        turb_gt = raw_telemetry.get("TurbineHealth", None)
-        ov_gt   = raw_telemetry.get("OverallHealth", None)
+        # Component predictions (0.0 to 1.0 scale mapped to 0-100%)
+        comp_pred = res.get("CompressorHealth", {}).get("prediction", 0.98)
+        comb_pred = res.get("CombustorHealth", {}).get("prediction", 0.97)
+        turb_pred = res.get("TurbineHealth", {}).get("prediction", 0.96)
+        ov_pred   = res.get("OverallHealth", {}).get("prediction", 0.97)
 
-        comp_h = float(comp_gt) if comp_gt is not None else res.get("CompressorHealth", {}).get("prediction", 0.98)
-        comb_h = float(comb_gt) if comb_gt is not None else res.get("CombustorHealth", {}).get("prediction", 0.97)
-        turb_h = float(turb_gt) if turb_gt is not None else res.get("TurbineHealth", {}).get("prediction", 0.96)
-        
-        # Scale decimal ratio values (e.g. 0.997 for Cycle 1 -> 99.7%, 0.768 for Cycle 30 -> 76.8%)
-        if comp_h <= 5.0: comp_h *= 100.0
-        if comb_h <= 5.0: comb_h *= 100.0
-        if turb_h <= 5.0: turb_h *= 100.0
+        comp_h = comp_pred * 100.0 if comp_pred <= 1.0 else comp_pred
+        comb_h = comb_pred * 100.0 if comb_pred <= 1.0 else comb_pred
+        turb_h = turb_pred * 100.0 if turb_pred <= 1.0 else turb_pred
+        ov_h   = ov_pred   * 100.0 if ov_pred   <= 1.0 else ov_pred
 
-        comp_h = min(99.8, max(50.0, comp_h))
-        comb_h = min(99.8, max(50.0, comb_h))
-        turb_h = min(99.8, max(50.0, turb_h))
+        comp_h = min(99.9, max(0.0, comp_h))
+        comb_h = min(99.9, max(0.0, comb_h))
+        turb_h = min(99.9, max(0.0, turb_h))
+        ov_h   = min(99.9, max(0.0, ov_h))
 
-        if ov_gt is not None:
-            ov_h = float(ov_gt)
-        else:
-            ov_h = res.get("OverallHealth", {}).get("prediction", (comp_h + comb_h + turb_h) / 3.0)
-        
-        if ov_h <= 5.0: ov_h *= 100.0
-        ov_h = min(99.8, max(50.0, ov_h))
+        thrust = res.get("Thrust_N", {}).get("prediction", 54000.0)
+        tsfc   = res.get("TSFC_g_N_s", {}).get("prediction", 0.0245)
 
-        thrust = res.get("Thrust_N", {}).get("prediction", raw_telemetry.get("Thrust_N", 54000.0))
-        if thrust > 1000.0: thrust /= 1000.0 # convert N -> kN for dashboard display
-
-        tsfc = res.get("TSFC_g_N_s", {}).get("prediction", raw_telemetry.get("TSFC_g_N_s", 0.0245))
 
         return {
             "Compressor Health": round(comp_h, 2),

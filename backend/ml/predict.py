@@ -161,6 +161,20 @@ class HealthPredictor:
             return self.feature_columns[target]
         return self.feature_columns
 
+    def _prepare_input(self, df: pd.DataFrame, columns: list) -> pd.DataFrame:
+        prepared = df.copy()
+        if "EngineID" in columns and "EngineID" not in prepared:
+            prepared["EngineID"] = 0
+        if "Cycle" in columns and "Cycle" not in prepared:
+            prepared["Cycle"] = np.arange(len(prepared), dtype=float)
+        missing = [col for col in columns if col not in prepared]
+        if missing:
+            engineered = engineer_features(prepared)
+            for col in missing:
+                if col in engineered:
+                    prepared[col] = engineered[col]
+        return prepared[columns]
+
     @classmethod
     def load(cls, models_dir=None) -> "HealthPredictor":
         """Load trained models from disk."""
@@ -259,12 +273,11 @@ class HealthPredictor:
         Predict all six targets for a single engine sensor reading.
         """
         row = pd.DataFrame([sensor_reading])
-        row = engineer_features(row)
 
         results = {}
         for target, model in self.models.items():
             target_cols = self._feature_columns_for_target(target)
-            target_row = row[target_cols]
+            target_row = self._prepare_input(row, target_cols)
             pred, std = predict_with_uncertainty(model, target_row)
             pred_val = clip_to_bounds(target, float(pred[0]))
             unc_val = float(std[0])
@@ -277,7 +290,9 @@ class HealthPredictor:
 
         explanations = None
         if include_shap and shap is not None:
-            explanations = self._build_shap_explanations(row[self._feature_columns_for_target(COMPONENT_TARGETS[0])])
+            explanations = self._build_shap_explanations(
+                self._prepare_input(row, self._feature_columns_for_target(COMPONENT_TARGETS[0]))
+            )
 
         risks, actions = self._assess_future_damage(results, explanations)
         results["shap_explanations"] = explanations
@@ -290,12 +305,11 @@ class HealthPredictor:
         """
         Predict all six targets for a DataFrame of sensor readings.
         """
-        df_feat = engineer_features(df)
-        output = df_feat.copy()
+        output = df.copy()
 
         for target, model in self.models.items():
             target_cols = self._feature_columns_for_target(target)
-            X = df_feat[target_cols]
+            X = self._prepare_input(df, target_cols)
             pred, std = predict_with_uncertainty(model, X)
             low, high = TARGET_BOUNDS.get(target, (None, None))
             pred = np.clip(pred, low, high)
@@ -326,4 +340,3 @@ if __name__ == "__main__":
     for risk in result["future_damage_risks"]:
         print(f"- {risk['component']}: {risk['severity']} "
               f"(risk={risk['risk_score']:.2f}) - {risk['potential_damage']}")
-
