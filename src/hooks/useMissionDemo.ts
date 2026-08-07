@@ -55,17 +55,9 @@ export function useMissionDemo(): MissionDemoState {
         }
       }
 
-      // Auto-navigate to relevant workstations during demo
-      if (current >= 3720 && current < 3730) setView('twin');       // Supersonic: show Digital Twin
-      if (current >= 3960 && current < 3970) setView('alerts');     // Anomaly: show Alerts
-      if (current >= 4080 && current < 4090) setView('ai');         // AI detects: show AI Diagnostics
-      if (current >= 4200 && current < 4210) setView('explain');    // Explainability
-      if (current >= 4320 && current < 4330) setView('maintenance');// Maintenance recommendation
-      if (current >= 5400 && current < 5410) setView('reports');    // Post-flight report
-
+      // Manual view selection preserved — automatic view switching disabled
       if (progress >= 100) {
         stopDemo();
-        setView('overview');
         return;
       }
 
