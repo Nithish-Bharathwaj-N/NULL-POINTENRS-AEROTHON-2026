@@ -21,11 +21,5 @@ const router = createBrowserRouter([
 ]);
 
 export const AppRouter: React.FC = () => {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-
-  if (!isAuthenticated) {
-    return <MissionAccessWorkstation />;
-  }
-
   return <RouterProvider router={router} />;
 };

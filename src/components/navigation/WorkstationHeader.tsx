@@ -96,24 +96,14 @@ export const WorkstationHeader: React.FC = React.memo(() => {
           <span className="text-white font-bold">{istTime}</span>
         </div>
 
-        {/* Operator Security Clearance Badge & Lock Button */}
+        {/* Operator Security Clearance Badge */}
         {user && (
           <>
             <span className="text-slate-700">|</span>
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1">
-                <Shield className="w-3 h-3 text-sky-400" />
-                <span className="font-bold text-white">{user.name}</span>
-                <span className="text-sky-400 font-bold uppercase text-[9px]">({user.role})</span>
-              </div>
-              <button
-                onClick={logout}
-                className="flex items-center gap-1 bg-red-950/60 border border-red-700/50 px-1.5 py-0.5 rounded-xs text-red-300 font-bold hover:bg-red-900 transition-colors cursor-pointer"
-                title="Lock Workstation & Return to Gateway"
-              >
-                <Lock className="w-2.5 h-2.5 text-amber-400" />
-                <span>LOCK</span>
-              </button>
+            <div className="flex items-center gap-1 shrink-0">
+              <Shield className="w-3 h-3 text-sky-400" />
+              <span className="font-bold text-white">{user.name}</span>
+              <span className="text-sky-400 font-bold uppercase text-[9px]">({user.role})</span>
             </div>
           </>
         )}
