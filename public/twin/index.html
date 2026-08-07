@@ -250,6 +250,13 @@
         <div class="sh-sub" id="sh-physics" style="margin-top:5px; color:#38bdf8;">ω 0.0 rad/s · τ<sub>net</sub> 0.0 N·m</div>
     </div>
 
+    <!-- DUAL 3D DIGITAL TWIN VIEWPORT BANNER (OUTER AIRFRAME SHELL vs INTERNAL ENGINE) -->
+    <div id="twin-viewmode-banner" onclick="toggleTwinViewMode()" style="position: absolute; top: 18px; left: 50%; transform: translateX(-50%); z-index: 50; cursor: pointer; background: rgba(8, 14, 26, 0.92); padding: 8px 18px; border: 1px solid rgba(56, 189, 248, 0.45); border-radius: 20px; backdrop-filter: blur(12px); box-shadow: 0 0 24px rgba(56, 189, 248, 0.35); display: flex; align-items: center; gap: 10px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #f8fafc; transition: all 0.25s ease;">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#38bdf8; box-shadow:0 0 8px #38bdf8;"></span>
+        <span>🛩️ AIRFORCE EXTERIOR ENGINE SHELL (Turbojetdemo)</span>
+        <span style="padding: 4px 12px; background: #0284c7; color: #ffffff; border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">ENTER INSIDE ENGINE 🔍</span>
+    </div>
+
     <!-- ENTERPRISE HEALTH HUD HEADER (TOP RIGHT - SPLIT INTO SIX METRICS) -->
     <div class="health-hud" id="health-hud" onclick="toggleAnalytics()" title="Click to Expand Full Analytics & Diagnostics">
         <div class="hh-title">
@@ -937,6 +944,69 @@ new THREE.GLTFLoader().load('./Turbojet.glb', (gltf) => {
     applyCutaway();
     buildPartsList();
 });
+
+// ── UNIFIED DUAL 3D DIGITAL TWIN (OUTER Turbojetdemo.glb vs INTERNAL Turbojet.glb) ──
+const outerGrp = new THREE.Group();
+scene.add(outerGrp);
+let outerMeshes = [];
+
+new THREE.GLTFLoader().load('./Turbojetdemo.glb', (gltf) => {
+    const om = gltf.scene;
+    om.scale.set(0.6, 0.6, 0.6);
+    outerGrp.add(om);
+    om.traverse((c) => {
+        if (c.isMesh) {
+            c.material = new THREE.MeshStandardMaterial({
+                color: c.material && c.material.color ? c.material.color : new THREE.Color(0x64748b),
+                metalness: 0.88,
+                roughness: 0.22
+            });
+            outerMeshes.push(c);
+        }
+    });
+    // Default initial view mode when opening 3D Digital Twin: OUTER (Turbojetdemo)
+    setTwinViewMode('OUTER');
+});
+
+E.TwinViewMode = 'OUTER';
+
+function toggleTwinViewMode() {
+    setTwinViewMode(E.TwinViewMode === 'OUTER' ? 'INTERNAL' : 'OUTER');
+}
+
+function setTwinViewMode(mode) {
+    E.TwinViewMode = mode;
+    const isOuter = mode === 'OUTER';
+
+    outerGrp.visible = isOuter;
+    eGrp.visible = !isOuter;
+
+    if (typeof flameGrp !== 'undefined') flameGrp.visible = !isOuter && E.FlameOn;
+    if (typeof fuelSpray !== 'undefined') fuelSpray.visible = !isOuter && E.cRPM > 500;
+    if (typeof zones !== 'undefined') {
+        zones.forEach(z => { if (z.ps && z.ps.material) z.ps.material.opacity = !isOuter && E.cRPM > 100 ? 0.45 : 0.0; });
+    }
+
+    const banner = document.getElementById('twin-viewmode-banner');
+    if (banner) {
+        banner.innerHTML = isOuter
+            ? `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#38bdf8; box-shadow:0 0 8px #38bdf8;"></span>
+               <span>🛩️ AIRFORCE EXTERIOR ENGINE SHELL (Turbojetdemo)</span>
+               <span style="padding: 4px 12px; background: #0284c7; color: #ffffff; border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">ENTER INSIDE ENGINE 🔍</span>`
+            : `<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#22c55e; box-shadow:0 0 8px #22c55e;"></span>
+               <span>🔬 INTERNAL 46-COMPONENT DIGITAL TWIN ACTIVE</span>
+               <span style="padding: 4px 12px; background: #334155; color: #38bdf8; border: 1px solid rgba(56,189,248,0.4); border-radius: 12px; font-weight: 700; letter-spacing: 0.5px;">⬅ BACK TO AIRFORCE EXTERIOR VIEW</span>`;
+    }
+
+    if (isOuter) {
+        cam.position.set(2.4, 1.0, 4.4);
+        orb.target.set(0, 0, 0);
+    } else {
+        cam.position.set(1.8, 0.8, 3.8);
+        orb.target.set(0, 0, 0);
+    }
+}
+
 
 // ── HEATMAP OVERLAY SHADERS & COLOR MAPS ──────────────────────────────
 function getHeatmapOverlayColor(mesh) {
@@ -1729,6 +1799,16 @@ ren.domElement.addEventListener('click', (e) => {
     if ((E.DrawerOpen && e.clientX > innerWidth - 480) || (E.PartsDrawerOpen && e.clientX < 340)) return;
     ms.x = (e.clientX/innerWidth)*2-1; ms.y = -(e.clientY/innerHeight)*2+1;
     rc.setFromCamera(ms, cam);
+
+    if (E.TwinViewMode === 'OUTER') {
+        const hits = rc.intersectObjects(outerGrp.children, true);
+        if (hits.length > 0) {
+            playInspectPing();
+            setTwinViewMode('INTERNAL');
+        }
+        return;
+    }
+
     const hits = rc.intersectObjects(eGrp.children, true);
     if (hits.length > 0) {
         // Pivot camera smoothly onto clicked mesh, but DO NOT show floating popup text!
