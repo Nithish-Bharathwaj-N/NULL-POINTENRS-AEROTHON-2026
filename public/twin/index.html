@@ -736,8 +736,9 @@ function animFuel() {
 }
 
 // ── EXACT REPLICATION OF USER SCREENSHOT COMBUSTION VISUALS ─────────
-const eGrp = new THREE.Group(); scene.add(eGrp);
+const eGrp = new THREE.Group(); eGrp.rotation.y = (270 * Math.PI / 180); scene.add(eGrp);
 const flameGrp = new THREE.Group();
+
 flameGrp.visible = false;
 eGrp.add(flameGrp);
 
@@ -946,8 +947,9 @@ new THREE.GLTFLoader().load('./Turbojet.glb', (gltf) => {
 });
 
 // ── UNIFIED DUAL 3D DIGITAL TWIN (OUTER Turbojetdemo.glb vs INTERNAL Turbojet.glb) ──
-const outerGrp = new THREE.Group();
+const outerGrp = new THREE.Group(); outerGrp.rotation.y = (270 * Math.PI / 180);
 scene.add(outerGrp);
+
 let outerMeshes = [];
 
 new THREE.GLTFLoader().load('./Turbojetdemo.glb', (gltf) => {
@@ -1382,14 +1384,15 @@ function rotateSpool() {
     const rn = Math.min(Math.max(E.cRPM / 12500, 0), 1.0);
     const dir = E.RotDir || -1;
     
-    // Spools only rotate when simulation is active and running — static by default
-    if (E.IsRunning && E.cRPM > 100) {
+    // Spools rotate continuously whenever RPM > 100 (whether manual throttle, dataset sim, or live telemetry!)
+    if (E.cRPM > 100) {
         const rs_lp = rn * 0.22 * dir;
         lpRotors.forEach(n => n.rotateOnAxis(rotAx, rs_lp));
 
         const rs_hp = -rn * 0.32 * dir;
         hpRotors.forEach(n => n.rotateOnAxis(rotAx, rs_hp));
     }
+
 }
 
 function toggleRotDir() {

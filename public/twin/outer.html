@@ -97,8 +97,9 @@
         const fillLight = new THREE.DirectionalLight(0x0284c7, 1.2); fillLight.position.set(-6, 4, -5); scene.add(fillLight);
         const rimLight = new THREE.DirectionalLight(0x64748b, 0.9); rimLight.position.set(0, -6, -4); scene.add(rimLight);
 
-        let modelGroup = new THREE.Group();
+        let modelGroup = new THREE.Group(); modelGroup.rotation.y = (270 * Math.PI / 180);
         scene.add(modelGroup);
+
         let meshes = [];
         let isWireframe = false;
 
