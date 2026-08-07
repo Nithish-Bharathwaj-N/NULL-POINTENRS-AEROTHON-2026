@@ -973,12 +973,11 @@ new THREE.GLTFLoader().load('./Turbojetdemo.glb', (gltf) => {
 
         }
     });
-    // Default initial view mode when opening 3D Digital Twin: OUTER (Turbojetdemo)
-    setTwinViewMode('OUTER');
+    outerGrp.visible = (E.TwinViewMode === 'OUTER');
 });
 
-
 E.TwinViewMode = 'OUTER';
+setTwinViewMode('OUTER');
 
 function toggleTwinViewMode() {
     setTwinViewMode(E.TwinViewMode === 'OUTER' ? 'INTERNAL' : 'OUTER');
