@@ -925,7 +925,10 @@ let lpRotors = [], hpRotors = [], casings = [], allMeshes = [], sensorLEDs = [];
 let initPos = new Map(); let cutaway = false, exploded = false;
 
 new THREE.GLTFLoader().load('./Turbojet.glb', (gltf) => {
-    const m = gltf.scene; m.scale.set(0.6, 0.6, 0.6); eGrp.add(m);
+    const m = gltf.scene;
+    m.scale.set(0.6, 0.6, 0.6);
+    m.rotation.y = (90 * Math.PI / 180); // +90° offset so Turbojet.glb lines up 100% horizontally parallel with Turbojetdemo.glb!
+    eGrp.add(m);
     scene.updateMatrixWorld(true);
     m.traverse((c) => {
         if (!c.isMesh) return;
