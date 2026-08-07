@@ -2067,6 +2067,18 @@ function animate() {
     requestAnimationFrame(animate);
     try {
         const t = clk.getElapsedTime(); fc++; orb.update();
+        
+        // Continuous 100% position, rotation, and scale synchronization between outer & inner twin
+        if (E.TwinViewMode === 'OUTER') {
+            eGrp.position.copy(outerGrp.position);
+            eGrp.rotation.copy(outerGrp.rotation);
+            eGrp.scale.copy(outerGrp.scale);
+        } else {
+            outerGrp.position.copy(eGrp.position);
+            outerGrp.rotation.copy(eGrp.rotation);
+            outerGrp.scale.copy(eGrp.scale);
+        }
+
         rotateSpool(); zones.forEach(animZone); animFuel(); animFlame(t); animExhaust(t);
         updateIngestionAnimations(t);
         if (fc % 4 === 0) updateThermals(); applyVibration(t);
