@@ -1301,6 +1301,7 @@ function clearSequenceTimer() {
 }
 
 function manualThrottle(val) {
+    stopThrottleRamp();
     clearSequenceTimer();
     
     // Stop dataset simulation playback overriding manual throttle
@@ -1409,6 +1410,38 @@ const SU = [
     { s:'CRUISE POWER',            rpm:12500, t3:1770, f:3.45, d:0,    flame:true },
 ];
 
+let throttleRampInterval = null;
+
+function stopThrottleRamp() {
+    if (throttleRampInterval) {
+        clearInterval(throttleRampInterval);
+        throttleRampInterval = null;
+    }
+}
+
+function updateThrottleState(val) {
+    const slider = document.getElementById('throttle-slider');
+    if (slider) slider.value = val;
+
+    const pct = val / 100.0;
+    const label = pct > 0.85 ? 'MILITARY' : (pct > 0.35 ? 'CRUISE' : (pct > 0 ? 'IDLE' : 'OFF'));
+    const valEl = document.getElementById('throttle-val');
+    if (valEl) {
+        valEl.innerHTML = `<div>${val}%</div><div style="font-size:0.55rem; color:#38bdf8; letter-spacing:0.5px;">${label}</div>`;
+    }
+
+    E.tRPM = pct * 12500.0;
+    E.tT3 = 20 + pct * 1750.0;
+    E.tFuel = pct * 3.45;
+    E.FlameOn = pct > 0.15;
+
+    if (pct === 0) E.State = "COLD ENGINE - SHUTDOWN";
+    else if (pct <= 0.25) E.State = "STARTER MOTOR - IGNITING";
+    else if (pct <= 0.50) E.State = "PRIMARY COMBUSTION";
+    else if (pct <= 0.85) E.State = "CRUISE POWER";
+    else E.State = "MAXIMUM MILITARY THRUST";
+}
+
 function toggleEngineState() {
     if (E.IsRunning) {
         shutdownSequence();
@@ -1430,43 +1463,63 @@ function syncEngineToggleButton() {
 }
 
 function startupSequence() {
+    stopThrottleRamp();
     clearSequenceTimer();
+
     E.IsRunning = true;
-    E.tRPM = 10500.0;
-    E.tT3 = 1550.0;
-    E.tFuel = 3.3;
-    E.FlameOn = true;
-    E.State = "IDLE RPM - ACTIVE";
-
-    const slider = document.getElementById('throttle-slider');
-    if (slider) slider.value = 84;
-    const valEl = document.getElementById('throttle-val');
-    if (valEl) valEl.innerHTML = `<div>84%</div><div style="font-size:0.55rem; color:#38bdf8; letter-spacing:0.5px;">IDLE</div>`;
-
     syncEngineToggleButton();
+
     try {
         fetch(`${getTwinApiBase()}/engine/start`, {method:'POST'}).catch(() => {});
     } catch(e) {}
+
+    const slider = document.getElementById('throttle-slider');
+    let startVal = slider ? (parseInt(slider.value) || 0) : 0;
+    const endVal = 100;
+    const durationMs = 5500; // 5.5 seconds gradual ramp from 0 to 100%
+    const startTime = Date.now();
+
+    throttleRampInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / durationMs, 1.0);
+        const currentVal = Math.round(startVal + progress * (endVal - startVal));
+
+        updateThrottleState(currentVal);
+
+        if (progress >= 1.0) {
+            stopThrottleRamp();
+        }
+    }, 25);
 }
 
 function shutdownSequence() {
+    stopThrottleRamp();
     clearSequenceTimer();
+
     E.IsRunning = false;
-    E.tRPM = 0.0;
-    E.tT3 = 20.0;
-    E.tFuel = 0.0;
-    E.FlameOn = false;
-    E.State = "COLD ENGINE - SHUTDOWN";
-
-    const slider = document.getElementById('throttle-slider');
-    if (slider) slider.value = 0;
-    const valEl = document.getElementById('throttle-val');
-    if (valEl) valEl.innerHTML = `<div>0%</div><div style="font-size:0.55rem; color:#38bdf8; letter-spacing:0.5px;">OFF</div>`;
-
     syncEngineToggleButton();
+
     try {
         fetch(`${getTwinApiBase()}/engine/stop`, {method:'POST'}).catch(() => {});
     } catch(e) {}
+
+    const slider = document.getElementById('throttle-slider');
+    let startVal = slider ? (parseInt(slider.value) || 100) : 100;
+    const endVal = 0;
+    const durationMs = 3500; // 3.5 seconds gradual ramp down from 100 to 0%
+    const startTime = Date.now();
+
+    throttleRampInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / durationMs, 1.0);
+        const currentVal = Math.round(startVal - progress * (startVal - endVal));
+
+        updateThrottleState(currentVal);
+
+        if (progress >= 1.0) {
+            stopThrottleRamp();
+        }
+    }, 25);
 }
 
 // ── DATASET STREAMING & PLAYBACK (STANDALONE + HYBRID BACKEND) ───────────
