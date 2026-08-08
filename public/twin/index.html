@@ -691,7 +691,7 @@ function lookupC(n) {
 // ── 3D SCENE ROOT GROUPS & PARTICLE FLOW ──────────────────────
 const eGrp = new THREE.Group(); eGrp.rotation.y = (270 * Math.PI / 180); scene.add(eGrp);
 const flameGrp = new THREE.Group();
-flameGrp.rotation.y = (90 * Math.PI / 180);
+flameGrp.rotation.y = 0; // 100% parallel with eGrp engine core Z-axis!
 flameGrp.visible = false;
 eGrp.add(flameGrp);
 
