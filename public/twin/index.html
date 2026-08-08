@@ -574,7 +574,7 @@ scene.background = new THREE.Color(0x060911);
 scene.fog = new THREE.FogExp2(0x060911, 0.035);
 
 const cam = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.05, 200);
-cam.position.set(-2.4, 1.0, 4.4); // 270 degree viewing angle
+cam.position.set(-2.8, 0.9, 4.2); // User preferred default 3D isometric perspective angle
 
 
 const ren = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -1843,10 +1843,10 @@ function togglePartsDrawer() {
 
     if (E.PartsDrawerOpen) {
         orb.target.set(0, 0, 0);
-        cam.position.set(2.2, 0.8, 2.8);
+        cam.position.set(-2.8, 0.9, 4.2);
     } else {
         orb.target.set(0, 0, 0);
-        cam.position.set(1.8, 0.8, 3.8);
+        cam.position.set(-2.8, 0.9, 4.2);
         filterPartTab('ALL', document.querySelectorAll('.pd-tab')[0]);
     }
 }
@@ -1863,19 +1863,19 @@ function filterPartTab(tab, btnEl) {
     // 3D Subsystem Focus & Camera Isolation (Compact Stage Centers)
     if (tab === 'INTAKE') {
         orb.target.set(0, 0, 1.0);
-        cam.position.set(1.2, 0.4, 2.1);
+        cam.position.set(-1.8, 0.5, 2.8);
     } else if (tab === 'COMPRESSOR') {
         orb.target.set(0, 0, 0.4);
-        cam.position.set(1.1, 0.4, 1.4);
+        cam.position.set(-1.4, 0.5, 2.2);
     } else if (tab === 'COMBUSTOR') {
         orb.target.set(0, 0, -0.3);
-        cam.position.set(1.0, 0.4, 0.4);
+        cam.position.set(-1.2, 0.4, 1.8);
     } else if (tab === 'TURBINE' || tab === 'EXHAUST') {
         orb.target.set(0, 0, -0.7);
-        cam.position.set(1.2, 0.35, -0.1);
+        cam.position.set(-1.2, 0.4, 1.4);
     } else {
         orb.target.set(0, 0, 0);
-        cam.position.set(2.0, 0.8, 2.8);
+        cam.position.set(-2.8, 0.9, 4.2);
     }
 
     allMeshes.forEach(m => {
