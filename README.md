@@ -4,9 +4,9 @@
 
 ---
 
-## 🔗 Project Assets & Submission Drive Link
-**Google Drive Folder**: [Submission Assets & Reports](https://drive.google.com/drive/folders/1Wy00NJbkm98PbZ48S5qG6Fh_H1iiLuI1?usp=sharing)  
-*(Includes Presentation Deck, Technical Report, Model Accuracy Plots, and Final Predicted CSV Files)*
+## 🔗 Live Demonstration
+
+[SubAero-DigitalTwin](https://null-pointers-aerothon-2026.vercel.app/)
 
 ---
 
