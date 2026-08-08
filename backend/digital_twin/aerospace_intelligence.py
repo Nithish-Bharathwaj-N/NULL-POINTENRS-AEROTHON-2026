@@ -92,30 +92,26 @@ class TelemetryCache:
 
     @staticmethod
     def fingerprint(telemetry: dict) -> str:
-        keys = ["T2_K", "T3_K", "T4_K", "P2_Pa", "P3_Pa", "P4_Pa", "RPM_rev_min", "FuelFlow_kg_s"]
+        # Finer-grained fingerprint so each telemetry frame is uniquely cached
+        keys = ["T2_K", "T3_K", "T4_K", "P2_Pa", "P3_Pa", "P4_Pa", "RPM_rev_min", "FuelFlow_kg_s", "Cycle"]
         parts = []
         for k in keys:
             v = telemetry.get(k, 0.0)
-            parts.append(f"{round(float(v) / 10) * 10:.0f}")
+            # round to nearest 1 unit (not 10) for higher resolution
+            parts.append(f"{round(float(v)):.0f}")
         return "|".join(parts)
 
     def get(self, key: str) -> Optional[dict]:
-        with self._lock:
-            if key in self._cache:
-                self.hits += 1
-                return self._cache[key]
-            self.misses += 1
-            return None
+        if key in self._cache:
+            self.hits += 1
+            return self._cache[key]
+        self.misses += 1
+        return None
 
     def put(self, key: str, value: dict):
-        with self._lock:
-            if key in self._keys:
-                self._keys.remove(key)
-            self._keys.append(key)
-            self._cache[key] = value
-            if len(self._cache) > self._keys.maxlen:
-                oldest = self._keys[0]
-                self._cache.pop(oldest, None)
+        if len(self._cache) >= 128:
+            self._cache.clear()
+        self._cache[key] = value
 
     @property
     def hit_rate_pct(self) -> float:
@@ -293,7 +289,11 @@ def generate_causal_reasoning(telemetry: dict, predictions: dict, health_dynamic
     p2 = float(telemetry.get("P2_Pa", 500000.0))
     p3 = float(telemetry.get("P3_Pa", 2400000.0))
     p4 = float(telemetry.get("P4_Pa", 120000.0))
-    vib = float(telemetry.get("vibrationG", telemetry.get("Vibration_G", 0.45)))
+    # Support all vibration key aliases from dataset + scenario frames
+    vib = float(telemetry.get("vibrationG",
+                telemetry.get("Vibration_G",
+                telemetry.get("Vibration",
+                telemetry.get("vibration_g", 0.45)))))
 
     # Q1: What changed?
     min_health = min(comp_h, comb_h, turb_h)
@@ -369,8 +369,14 @@ def generate_aerospace_shap(telemetry: dict, predictions: dict) -> dict:
     p3 = float(telemetry.get("P3_Pa", 2400000.0))
     p4 = float(telemetry.get("P4_Pa", 120000.0))
     rpm = float(telemetry.get("RPM_rev_min", telemetry.get("RPM", 16222.0)))
-    ff  = float(telemetry.get("FuelFlow_kg_s", telemetry.get("Fuel Flow", 0.68)))
-    vib = float(telemetry.get("vibrationG", 0.45))
+    ff  = float(telemetry.get("FuelFlow_kg_s",
+                telemetry.get("FuelFlow",
+                telemetry.get("Fuel Flow", 0.68))))
+    # Support all vibration key aliases from dataset + scenario frames
+    vib = float(telemetry.get("vibrationG",
+                telemetry.get("Vibration_G",
+                telemetry.get("Vibration",
+                telemetry.get("vibration_g", 0.45)))))
 
     comp_h = float(predictions.get("Compressor Health", predictions.get("CompressorHealth", 95.0)))
     turb_h = float(predictions.get("Turbine Health", predictions.get("TurbineHealth", 95.0)))
@@ -475,7 +481,10 @@ def generate_maintenance_prognosis(predictions: dict, health_dynamic: dict,
 
     min_h = min(comp_h, comb_h, turb_h)
     deg_vel = health_dynamic.get("degradation_velocity_pct_per_cycle", 0.0)
-    vib = float(telemetry.get("vibrationG", 0.45))
+    vib = float(telemetry.get("vibrationG",
+                telemetry.get("Vibration_G",
+                telemetry.get("Vibration",
+                telemetry.get("vibration_g", 0.45)))))
 
     # Weibull-based RUL estimation
     beta = 1.84  # shape parameter for gas turbine components
@@ -638,7 +647,11 @@ def run_intelligence_pipeline(telemetry: dict, predictions: dict,
     comp_h = float(predictions.get("Compressor Health", predictions.get("CompressorHealth", 95.0)))
     comb_h = float(predictions.get("Combustor Health", predictions.get("CombustorHealth", 95.0)))
     turb_h = float(predictions.get("Turbine Health", predictions.get("TurbineHealth", 95.0)))
-    vib = float(telemetry.get("vibrationG", 0.45))
+    # Support all vibration key aliases from dataset + scenario frames
+    vib = float(telemetry.get("vibrationG",
+                telemetry.get("Vibration_G",
+                telemetry.get("Vibration",
+                telemetry.get("vibration_g", 0.45)))))
 
     # Phase 5: Engineering envelope validation
     envelope = validate_engineering_envelope(telemetry)

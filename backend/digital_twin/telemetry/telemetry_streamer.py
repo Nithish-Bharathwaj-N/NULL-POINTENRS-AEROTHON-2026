@@ -17,9 +17,15 @@ class TelemetryStreamer:
         self.load_dataset()
 
     def load_dataset(self):
+        self._lookup = {}
         if os.path.exists(self.dataset_path):
             self.df = pd.read_csv(self.dataset_path)
             print(f"[TelemetryStreamer] Loaded {len(self.df)} telemetry frames from {self.dataset_path}")
+            # Pre-index for O(1) lookup
+            for row in self.df.to_dict("records"):
+                eng = str(row.get("EngineID", "1"))
+                cyc = int(row.get("Cycle", 1))
+                self._lookup[(eng, cyc)] = self._clean_row(row)
         else:
             print(f"[TelemetryStreamer] WARNING: Dataset {self.dataset_path} not found.")
 
@@ -44,21 +50,12 @@ class TelemetryStreamer:
         return self._clean_row(row)
 
     def get_playback_frame(self, engine_id: str, cycle: int) -> dict:
-        if self.df is None:
-            return self._fallback_frame()
-        
-        filtered = self.df[(self.df["EngineID"] == engine_id) & (self.df["Cycle"] == cycle)]
-        if len(filtered) > 0:
-            return self._clean_row(filtered.iloc[0].to_dict())
-        
-        # Fallback to nearest index
-        sub = self.df[self.df["EngineID"] == engine_id]
-        if len(sub) > 0:
-            idx = min(cycle - 1, len(sub) - 1)
-            return self._clean_row(sub.iloc[idx].to_dict())
-
-        idx = min(cycle - 1, len(self.df) - 1)
-        return self._clean_row(self.df.iloc[idx].to_dict())
+        key = (str(engine_id), int(cycle))
+        if hasattr(self, "_lookup") and key in self._lookup:
+            return self._lookup[key]
+        if hasattr(self, "_lookup") and ("1", int(cycle)) in self._lookup:
+            return self._lookup[("1", int(cycle))]
+        return self._fallback_frame()
 
     def _clean_row(self, row: dict) -> dict:
         clean = {}

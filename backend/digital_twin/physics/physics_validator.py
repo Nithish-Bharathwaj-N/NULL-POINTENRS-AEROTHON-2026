@@ -34,7 +34,7 @@ class PhysicsValidator:
 
         Tt1_k, Pt1_psi = GasTurbinePhysicsEngine.calculate_inlet_conditions(alt, mach, T_amb, P_amb)
         calc_T2, comp_eta = GasTurbinePhysicsEngine.calculate_compressor_exit(Tt1_k, Pt1_psi, P2, comp_h)
-        calc_T3, comb_eta = GasTurbinePhysicsEngine.calculate_combustor_exit(T2, fuel_flow * 360.0, comb_h)
+        calc_T3, comb_eta = GasTurbinePhysicsEngine.calculate_combustor_exit(T2, fuel_flow * 3600.0, comb_h)
         calc_T4, calc_P4, calc_thrust, calc_tsfc = GasTurbinePhysicsEngine.calculate_turbine_and_thrust(T3, T2, P3, turb_h, mach)
 
         # Residual Errors

@@ -458,10 +458,10 @@ export function useBackendIntelligence(): IntelligenceState {
           efficiency: comp.computational_efficiency ?? 98.8,
           interpretability: comp.interpretability ?? 98.2,
 
-          backendCompHealth: compH !== null ? Number(Number(compH).toFixed(2)) : null,
-          backendCombHealth: combH !== null ? Number(Number(combH).toFixed(2)) : null,
-          backendTurbHealth: turbH !== null ? Number(Number(turbH).toFixed(2)) : null,
-          backendOverallHealth: ovH !== null ? Number(Number(ovH).toFixed(2)) : null,
+          backendCompHealth: compH !== null ? normPct(compH, 99.0) : null,
+          backendCombHealth: combH !== null ? normPct(combH, 99.0) : null,
+          backendTurbHealth: turbH !== null ? normPct(turbH, 99.0) : null,
+          backendOverallHealth: ovH !== null ? normPct(ovH, 99.0) : null,
           backendThrust: thrust !== null ? Number(Number(thrust).toFixed(2)) : null,
           backendTsfc: tsfc !== null ? Number(Number(tsfc).toFixed(6)) : null,
           backendConfidence: conf !== null ? Number(Number(conf).toFixed(1)) : null,
@@ -497,25 +497,26 @@ export function useBackendIntelligence(): IntelligenceState {
         setState((prev) => {
           const nextCycle = ((prev.cycleCursor ?? 1) % 300) + 1;
           const cycleRatio = nextCycle / 300;
-          const compH = Math.max(0.70, 0.99 - cycleRatio * 0.28 + Math.sin(nextCycle * 0.05) * 0.01);
-          const combH = Math.max(0.75, 0.99 - cycleRatio * 0.22 + Math.cos(nextCycle * 0.05) * 0.01);
-          const turbH = Math.max(0.68, 0.99 - cycleRatio * 0.30 - Math.sin(nextCycle * 0.03) * 0.01);
-          const ovH = 0.35 * compH + 0.30 * combH + 0.35 * turbH;
+          // Health as 0-100 percentage (not 0-1 decimal)
+          const compH = Math.round(Math.max(70.0, 99.0 - cycleRatio * 28.0 + Math.sin(nextCycle * 0.05) * 1.0) * 10) / 10;
+          const combH = Math.round(Math.max(75.0, 99.0 - cycleRatio * 22.0 + Math.cos(nextCycle * 0.05) * 1.0) * 10) / 10;
+          const turbH = Math.round(Math.max(68.0, 99.0 - cycleRatio * 30.0 - Math.sin(nextCycle * 0.03) * 1.0) * 10) / 10;
+          const ovH  = Math.round((0.35 * compH + 0.30 * combH + 0.35 * turbH) * 10) / 10;
           const rpm = Math.round(12500 - cycleRatio * 650 + Math.sin(nextCycle * 0.2) * 50);
           const thrustKn = Number((58.5 - cycleRatio * 8.2 + Math.sin(nextCycle * 0.1) * 0.5).toFixed(1));
 
           return {
             ...prev,
-            backendOnline: true,
+            backendOnline: failCount.current < 3, // show offline after 3 consecutive failures
             lastUpdated: new Date().toISOString().substring(11, 19) + ' UTC',
-            overallHealthSmoothed: Math.round(ovH * 1000) / 10,
-            compressorHealthSmoothed: Math.round(compH * 1000) / 10,
-            combustorHealthSmoothed: Math.round(combH * 1000) / 10,
-            turbineHealthSmoothed: Math.round(turbH * 1000) / 10,
-            backendCompHealth: Math.round(compH * 1000) / 1000,
-            backendCombHealth: Math.round(combH * 1000) / 1000,
-            backendTurbHealth: Math.round(turbH * 1000) / 1000,
-            backendOverallHealth: Math.round(ovH * 1000) / 1000,
+            overallHealthSmoothed: ovH,
+            compressorHealthSmoothed: compH,
+            combustorHealthSmoothed: combH,
+            turbineHealthSmoothed: turbH,
+            backendCompHealth: compH,
+            backendCombHealth: combH,
+            backendTurbHealth: turbH,
+            backendOverallHealth: ovH,
             backendThrust: thrustKn * 1000,
             thrustKn: thrustKn,
             rpm: rpm,
