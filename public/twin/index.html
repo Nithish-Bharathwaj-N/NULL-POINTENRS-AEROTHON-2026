@@ -1337,6 +1337,8 @@ function manualThrottle(val) {
     else if (pct <= 0.50) E.State = "PRIMARY COMBUSTION";
     else if (pct <= 0.85) E.State = "CRUISE POWER";
     else E.State = "MAXIMUM MILITARY THRUST";
+
+    syncEngineToggleButton();
 }
 
 function applyCutaway() {
@@ -1408,7 +1410,7 @@ const SU = [
 ];
 
 function toggleEngineState() {
-    if (E.IsRunning || E.cRPM > 100) {
+    if (E.IsRunning) {
         shutdownSequence();
     } else {
         startupSequence();
@@ -1418,8 +1420,7 @@ function toggleEngineState() {
 function syncEngineToggleButton() {
     const btn = document.getElementById('btn-engine-toggle');
     if (!btn) return;
-    const isRunning = E.IsRunning || E.cRPM > 100;
-    if (isRunning) {
+    if (E.IsRunning) {
         btn.className = 'ctrl-btn stop';
         btn.innerHTML = '■ STOP ENGINE';
     } else {
@@ -1430,65 +1431,42 @@ function syncEngineToggleButton() {
 
 function startupSequence() {
     clearSequenceTimer();
-    E.IsRunning = true; let i = 0;
+    E.IsRunning = true;
+    E.tRPM = 10500.0;
+    E.tT3 = 1550.0;
+    E.tFuel = 3.3;
+    E.FlameOn = true;
+    E.State = "IDLE RPM - ACTIVE";
+
+    const slider = document.getElementById('throttle-slider');
+    if (slider) slider.value = 84;
+    const valEl = document.getElementById('throttle-val');
+    if (valEl) valEl.innerHTML = `<div>84%</div><div style="font-size:0.55rem; color:#38bdf8; letter-spacing:0.5px;">IDLE</div>`;
+
     syncEngineToggleButton();
     try {
         fetch(`${getTwinApiBase()}/engine/start`, {method:'POST'}).catch(() => {});
     } catch(e) {}
-    (function next() {
-        if (i >= SU.length) return; const st = SU[i];
-        E.State = st.s; E.tRPM = st.rpm; E.tT3 = st.t3; E.tFuel = st.f; E.FlameOn = st.flame;
-        const slider = document.getElementById('throttle-slider');
-        if (slider) slider.value = Math.round((st.rpm/12500)*100);
-        const valEl = document.getElementById('throttle-val');
-        const pVal = Math.round((st.rpm/12500)*100);
-        const label = pVal > 80 ? 'MILITARY' : (pVal > 30 ? 'CRUISE' : (pVal > 0 ? 'IDLE' : 'OFF'));
-        if (valEl) valEl.innerHTML = `<div>${pVal}%</div><div style="font-size:0.55rem; color:#38bdf8;">${label}</div>`;
-        i++;
-        if (st.d > 0) {
-            seqTimer = setTimeout(next, st.d);
-        } else {
-            seqTimer = null;
-        }
-    })();
 }
-
-const SD = [
-    { s:'THROTTLE CLOSED',       rpm:10000, t3:1480, f:3.0,  d:1000, flame:true },
-    { s:'FUEL REDUCING',         rpm:8000,  t3:1100, f:2.0,  d:1000, flame:true },
-    { s:'FUEL STOPPED',          rpm:6000,  t3:750,  f:0.5,  d:1000, flame:true },
-    { s:'FLAME SHRINKING',       rpm:4500,  t3:400,  f:0.1,  d:1000, flame:true },
-    { s:'COMBUSTION ENDED',      rpm:3200,  t3:220,  f:0,    d:1000, flame:false },
-    { s:'TURBINE DECELERATING',  rpm:2000,  t3:140,  f:0,    d:1000, flame:false },
-    { s:'COMPRESSOR SLOWING',    rpm:1000,  t3:90,   f:0,    d:1000, flame:false },
-    { s:'FAN STOPPING',          rpm:300,   t3:55,   f:0,    d:1200, flame:false },
-    { s:'HEAT DISSIPATING',      rpm:50,    t3:35,   f:0,    d:1500, flame:false },
-    { s:'COMPLETE STOP',         rpm:0,     t3:20,   f:0,    d:0,    flame:false },
-];
 
 function shutdownSequence() {
     clearSequenceTimer();
-    E.IsRunning = false; let i = 0;
+    E.IsRunning = false;
+    E.tRPM = 0.0;
+    E.tT3 = 20.0;
+    E.tFuel = 0.0;
+    E.FlameOn = false;
+    E.State = "COLD ENGINE - SHUTDOWN";
+
+    const slider = document.getElementById('throttle-slider');
+    if (slider) slider.value = 0;
+    const valEl = document.getElementById('throttle-val');
+    if (valEl) valEl.innerHTML = `<div>0%</div><div style="font-size:0.55rem; color:#38bdf8; letter-spacing:0.5px;">OFF</div>`;
+
     syncEngineToggleButton();
     try {
         fetch(`${getTwinApiBase()}/engine/stop`, {method:'POST'}).catch(() => {});
     } catch(e) {}
-    (function next() {
-        if (i >= SD.length) return; const st = SD[i];
-        E.State = st.s; E.tRPM = st.rpm; E.tT3 = st.t3; E.tFuel = st.f; E.FlameOn = st.flame;
-        const slider = document.getElementById('throttle-slider');
-        if (slider) slider.value = Math.round((st.rpm/12500)*100);
-        const valEl = document.getElementById('throttle-val');
-        const pVal = Math.round((st.rpm/12500)*100);
-        const label = pVal > 80 ? 'MILITARY' : (pVal > 30 ? 'CRUISE' : (pVal > 0 ? 'IDLE' : 'OFF'));
-        if (valEl) valEl.innerHTML = `<div>${pVal}%</div><div style="font-size:0.55rem; color:#38bdf8;">${label}</div>`;
-        i++;
-        if (st.d > 0) {
-            seqTimer = setTimeout(next, st.d);
-        } else {
-            seqTimer = null;
-        }
-    })();
 }
 
 // ── DATASET STREAMING & PLAYBACK (STANDALONE + HYBRID BACKEND) ───────────
