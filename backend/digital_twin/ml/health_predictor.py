@@ -38,8 +38,12 @@ class HealthPredictor:
 
     @classmethod
     def load(cls) -> "HealthPredictor":
-        target_feature_path = os.path.join(MODELS_DIR, "target_feature_columns.json")
-        feature_path = os.path.join(MODELS_DIR, "feature_columns.json")
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        physics_models_dir = os.path.join(root_dir, "trained_models_physics")
+        target_dir = physics_models_dir if os.path.exists(physics_models_dir) else MODELS_DIR
+
+        target_feature_path = os.path.join(target_dir, "target_feature_columns.json")
+        feature_path = os.path.join(target_dir, "feature_columns.json")
 
         target_feature_columns = {}
         if os.path.exists(target_feature_path):
@@ -54,7 +58,7 @@ class HealthPredictor:
 
         models = {}
         for target in TARGET_COLUMNS:
-            model_path = os.path.join(MODELS_DIR, f"{target}.joblib")
+            model_path = os.path.join(target_dir, f"{target}.joblib")
             if os.path.exists(model_path):
                 models[target] = joblib.load(model_path)
             else:
