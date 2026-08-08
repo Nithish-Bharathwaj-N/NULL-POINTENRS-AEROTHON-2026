@@ -1516,16 +1516,18 @@ async function poll() {
             E.P4 = t.P4_Pa ? t.P4_Pa / 6894.76 : (t["Turbine Exit Pressure (P4)"] || 14.5);
             E.T4 = t.T4_K ? (t.T4_K > 400 ? t.T4_K - 273.15 : t.T4_K) : 1030;
 
-            E.cRPM = E.RPM;
-            E.cT3 = E.T3;
-            E.cFuel = E.FuelFlow;
-            E.tRPM = E.RPM;
-            E.tT3 = E.T3;
-            E.tFuel = E.FuelFlow;
-            E.FlameOn = state !== "OFF";
-            E.Cycle = t.Cycle || d.cycle_cursor || E.SimCycle || 1;
-            E.SimCycle = E.Cycle;
-            E.State = state === "OFF" ? "COLD ENGINE" : (state === "RUNNING" ? "RUNNING (HOT)" : state);
+            if (E.SimPlaying || E.IsManualScrubbing) {
+                E.cRPM = E.RPM;
+                E.cT3 = E.T3;
+                E.cFuel = E.FuelFlow;
+                E.tRPM = E.RPM;
+                E.tT3 = E.T3;
+                E.tFuel = E.FuelFlow;
+                E.FlameOn = state !== "OFF";
+                E.Cycle = t.Cycle || d.cycle_cursor || E.SimCycle || 1;
+                E.SimCycle = E.Cycle;
+                E.State = state === "OFF" ? "COLD ENGINE" : (state === "RUNNING" ? "RUNNING (HOT)" : state);
+            }
 
             if (lastP) {
                 E.CompH = lastP["Compressor Health"] !== undefined ? (lastP["Compressor Health"] > 1 ? lastP["Compressor Health"] : lastP["Compressor Health"] * 100) : E.CompH;
