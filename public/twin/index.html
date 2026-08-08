@@ -688,6 +688,13 @@ function lookupC(n) {
     return { key:n, sub:'Structure', mat:'Alloy Steel', maxT:500, maxP:40, tk:'shaft', color:0x525b68, metal:0.85, rough:0.30, pratio:1.00 };
 }
 
+// ── 3D SCENE ROOT GROUPS & PARTICLE FLOW ──────────────────────
+const eGrp = new THREE.Group(); eGrp.rotation.y = (270 * Math.PI / 180); scene.add(eGrp);
+const flameGrp = new THREE.Group();
+flameGrp.rotation.y = (90 * Math.PI / 180);
+flameGrp.visible = false;
+eGrp.add(flameGrp);
+
 function mkFlowParticles(count, size, zStart, zEnd, spread) {
     const g = new THREE.BufferGeometry(); const p = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) { p[i*3] = (Math.random()-0.5)*spread; p[i*3+1] = (Math.random()-0.5)*spread; p[i*3+2] = zStart + Math.random()*(zEnd - zStart); }
@@ -736,13 +743,6 @@ function animFuel() {
     }
     fGeo.attributes.position.needsUpdate = true;
 }
-
-// ── EXACT REPLICATION OF USER SCREENSHOT COMBUSTION VISUALS ─────────
-const eGrp = new THREE.Group(); eGrp.rotation.y = (270 * Math.PI / 180); scene.add(eGrp);
-const flameGrp = new THREE.Group();
-flameGrp.rotation.y = (90 * Math.PI / 180); // Align 100% parallel with internal engine scene m!
-flameGrp.visible = false;
-eGrp.add(flameGrp);
 
 // Single continuous connected combustion, turbine & inner exhaust flame volume (perfectly proportioned)
 const cgGeo = new THREE.CylinderGeometry(0.082, 0.055, 1.05, 32, 1, true);
