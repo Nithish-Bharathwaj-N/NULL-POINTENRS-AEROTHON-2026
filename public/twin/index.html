@@ -631,10 +631,10 @@ const makeStagePedestal = (x, z, colorHex, radius) => {
     return pGroup;
 };
 
-const pedStage1 = makeStagePedestal(0, +3.0, 0x38bdf8, 0.65);
-const pedStage2 = makeStagePedestal(0, +1.0, 0x06b6d4, 0.55);
-const pedStage3 = makeStagePedestal(0, -1.0, 0xff5500, 0.55);
-const pedStage4 = makeStagePedestal(0, -3.0, 0xec4899, 0.60);
+const pedStage1 = makeStagePedestal(-2.2, 0, 0x38bdf8, 0.65);
+const pedStage2 = makeStagePedestal(-0.7, 0, 0x06b6d4, 0.55);
+const pedStage3 = makeStagePedestal(+0.7, 0, 0xff5500, 0.55);
+const pedStage4 = makeStagePedestal(+2.2, 0, 0xec4899, 0.60);
 
 stagePedestalGroup.add(pedStage1);
 stagePedestalGroup.add(pedStage2);
@@ -699,46 +699,58 @@ function mkFlowParticles(count, size, zStart, zEnd, spread) {
     const g = new THREE.BufferGeometry(); const p = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) { p[i*3] = (Math.random()-0.5)*spread; p[i*3+1] = (Math.random()-0.5)*spread; p[i*3+2] = zStart + Math.random()*(zEnd - zStart); }
     g.setAttribute('position', new THREE.BufferAttribute(p, 3));
-    return new THREE.Points(g, new THREE.PointsMaterial({ color: 0x94a3b8, size, transparent:true, opacity:0, blending: THREE.AdditiveBlending, depthWrite:false }));
+    return new THREE.Points(g, new THREE.PointsMaterial({ color: 0x38bdf8, size, transparent:true, opacity:0, blending: THREE.AdditiveBlending, depthWrite:false }));
 }
 
 const zones = [
-    { ps: mkFlowParticles(80, 0.020, +1.5, +2.5, 0.50), zHi:+2.5, zLo:+1.5, vk:'intake_velocity_ms', vs:0.00025 },
-    { ps: mkFlowParticles(90, 0.016, +0.1, +1.5, 0.32), zHi:+1.5, zLo:+0.1, vk:'compressor_exit_velocity_ms', vs:0.00025 },
-    { ps: mkFlowParticles(60, 0.025, -0.8, +0.1, 0.18), zHi:+0.1, zLo:-0.8, vk:'diffuser_exit_velocity_ms', vs:0.00030 },
-    { ps: mkFlowParticles(70, 0.022, -1.3, -0.8, 0.28), zHi:-0.8, zLo:-1.3, vk:'turbine_exit_velocity_ms', vs:0.00025 },
-    { ps: mkFlowParticles(80, 0.030, -3.5, -1.3, 0.45), zHi:-1.3, zLo:-3.5, vk:'exhaust_velocity_ms', vs:0.00003 },
+    { ps: mkFlowParticles(100, 0.022, +1.5, +2.5, 0.50), zHi:+2.5, zLo:+1.5, vs: 0.05 },
+    { ps: mkFlowParticles(120, 0.018, +0.1, +1.5, 0.32), zHi:+1.5, zLo:+0.1, vs: 0.06 },
+    { ps: mkFlowParticles(80,  0.026, -0.8, +0.1, 0.18), zHi:+0.1, zLo:-0.8, vs: 0.07 },
+    { ps: mkFlowParticles(90,  0.024, -1.3, -0.8, 0.28), zHi:-0.8, zLo:-1.3, vs: 0.08 },
+    { ps: mkFlowParticles(120, 0.035, -3.5, -1.3, 0.45), zHi:-1.3, zLo:-3.5, vs: 0.12 },
 ];
 zones.forEach(z => eGrp.add(z.ps));
 
 function animZone(z) {
-    const isRunning = E.cRPM > 100; z.ps.material.opacity = isRunning ? 0.45 : 0.0; if (!isRunning) return;
-    const pos = z.ps.geometry.attributes.position.array; const n = pos.length / 3;
-    let vel = 0; if (E.Phys && E.Phys.fluid) vel = (E.Phys.fluid[z.vk] || 0) * z.vs; vel = Math.max(vel * (E.cRPM / 12500), 0.001);
+    const isRunning = E.cRPM > 100;
+    z.ps.material.opacity = isRunning ? 0.65 : 0.0;
+    if (!isRunning) return;
+    const rpmRatio = E.cRPM / 12500.0;
+    const pos = z.ps.geometry.attributes.position.array;
+    const n = pos.length / 3;
+    const vel = z.vs * (0.3 + rpmRatio * 1.5); // High speed flow streaming at 100% throttle!
     for (let i = 0; i < n; i++) {
         pos[i*3+2] -= vel;
-        if (pos[i*3+2] < z.zLo) { pos[i*3+2] = z.zHi; const sp = z === zones[4] ? 0.45 : 0.25; pos[i*3] = (Math.random()-0.5)*sp; pos[i*3+1] = (Math.random()-0.5)*sp; }
+        if (pos[i*3+2] < z.zLo) {
+            pos[i*3+2] = z.zHi;
+            const sp = z === zones[4] ? 0.45 : 0.25;
+            pos[i*3] = (Math.random()-0.5)*sp;
+            pos[i*3+1] = (Math.random()-0.5)*sp;
+        }
     }
     z.ps.geometry.attributes.position.needsUpdate = true;
 }
 
-const fN = 40; const fGeo = new THREE.BufferGeometry(); const fPos = new Float32Array(fN*3); const fVel = new Float32Array(fN*3);
+const fN = 50; const fGeo = new THREE.BufferGeometry(); const fPos = new Float32Array(fN*3); const fVel = new Float32Array(fN*3);
 for (let i = 0; i < fN; i++) resetFP(i);
 fGeo.setAttribute('position', new THREE.BufferAttribute(fPos, 3));
-const fMat = new THREE.PointsMaterial({ color:0x38bdf8, size:0.018, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false });
+const fMat = new THREE.PointsMaterial({ color:0x38bdf8, size:0.022, transparent:true, opacity:0, blending:THREE.AdditiveBlending, depthWrite:false });
 const fuelSpray = new THREE.Points(fGeo, fMat); eGrp.add(fuelSpray);
 
 function resetFP(i) {
     const a = Math.random() * Math.PI * 2; const r = 0.06 + Math.random() * 0.03;
     fPos[i*3] = Math.cos(a) * r; fPos[i*3+1] = Math.sin(a) * r; fPos[i*3+2] = -0.15;
-    fVel[i*3] = -Math.cos(a) * 0.001; fVel[i*3+1] = -Math.sin(a) * 0.001; fVel[i*3+2] = -(0.006 + Math.random() * 0.008);
+    fVel[i*3] = -Math.cos(a) * 0.002; fVel[i*3+1] = -Math.sin(a) * 0.002; fVel[i*3+2] = -(0.02 + Math.random() * 0.03);
 }
 
 function animFuel() {
     const ff = E.cFuel / 3.5; const isRunning = E.cRPM > 500 && ff > 0.05; fuelSpray.visible = isRunning; if (!isRunning) return;
-    fMat.opacity = Math.min(ff * 0.7, 0.65);
+    fMat.opacity = Math.min(ff * 0.85, 0.75);
+    const rpmRatio = E.cRPM / 12500.0;
     for (let i = 0; i < fN; i++) {
-        fPos[i*3] += fVel[i*3] * ff; fPos[i*3+1] += fVel[i*3+1] * ff; fPos[i*3+2] += fVel[i*3+2] * ff;
+        fPos[i*3] += fVel[i*3] * (0.5 + rpmRatio);
+        fPos[i*3+1] += fVel[i*3+1] * (0.5 + rpmRatio);
+        fPos[i*3+2] += fVel[i*3+2] * (0.8 + rpmRatio * 2.0);
         if (fPos[i*3+2] < -0.70) resetFP(i);
     }
     fGeo.attributes.position.needsUpdate = true;
@@ -1913,19 +1925,19 @@ function filterPartTab(tab, btnEl) {
     if (btnEl) btnEl.classList.add('active');
     filterParts(document.getElementById('pd-search-input')?.value || '');
 
-    // 3D Subsystem Focus & Camera Isolation (Compact Stage Centers)
+    // 3D Subsystem Focus & Camera Isolation (Horizontal Stage Centers)
     if (tab === 'INTAKE') {
-        orb.target.set(0, 0, 1.0);
-        cam.position.set(-1.8, 0.5, 2.8);
+        orb.target.set(-2.2, 0, 0);
+        cam.position.set(-2.2, 0.4, 3.2);
     } else if (tab === 'COMPRESSOR') {
-        orb.target.set(0, 0, 0.4);
-        cam.position.set(-1.4, 0.5, 2.2);
+        orb.target.set(-0.7, 0, 0);
+        cam.position.set(-0.7, 0.4, 3.0);
     } else if (tab === 'COMBUSTOR') {
-        orb.target.set(0, 0, -0.3);
-        cam.position.set(-1.2, 0.4, 1.8);
+        orb.target.set(+0.7, 0, 0);
+        cam.position.set(+0.7, 0.4, 3.0);
     } else if (tab === 'TURBINE' || tab === 'EXHAUST') {
-        orb.target.set(0, 0, -0.7);
-        cam.position.set(-1.2, 0.4, 1.4);
+        orb.target.set(+2.2, 0, 0);
+        cam.position.set(+2.2, 0.4, 3.2);
     } else {
         orb.target.set(0, 0, 0);
         cam.position.set(-2.8, 0.9, 4.2);
