@@ -62,7 +62,8 @@ class AerospaceDatasetPipeline:
         # 2. Physics-Consistent Imputation Strategy
         # Group-wise forward-fill by EngineID, followed by median fallback
         if "EngineID" in out.columns:
-            out = out.groupby("EngineID", group_keys=False).apply(lambda group: group.ffill().bfill())
+            fill_cols = [c for c in out.columns if c != "EngineID"]
+            out[fill_cols] = out.groupby("EngineID")[fill_cols].transform(lambda g: g.ffill().bfill())
 
         # Fallback to column median for any remaining NaNs
         numeric_cols = out.select_dtypes(include=[np.number]).columns

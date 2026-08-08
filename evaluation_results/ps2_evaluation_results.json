@@ -1,49 +1,49 @@
 {
-  "test_dataset": "C:\\Users\\praja\\Downloads\\AEROTHON2026-main (2)\\AEROTHON2026-main\\backend\\digital_twin\\data\\turbojet_complete_dataset.csv",
-  "evaluation_timestamp": "2026-08-07 16:57:08",
+  "test_dataset": "/home/kishore/Projects/SubAERO/backend/digital_twin/data/turbojet_complete_dataset.csv",
+  "evaluation_timestamp": "2026-08-08 22:51:43",
   "dataset_summary": {
     "num_samples": 30000,
     "num_engines": 100
   },
   "target_metrics": {
     "CompressorHealth": {
-      "MAE": 6.5212,
-      "RMSE": 7.6082,
-      "R2": -0.2753
+      "MAE": 0.1018,
+      "RMSE": 0.133,
+      "R2": -2.8971
     },
     "CombustorHealth": {
-      "MAE": 2.1162,
-      "RMSE": 2.6001,
-      "R2": -0.0016
+      "MAE": 0.3765,
+      "RMSE": 0.4104,
+      "R2": -248.5606
     },
     "TurbineHealth": {
-      "MAE": 4.2547,
-      "RMSE": 5.0795,
-      "R2": -0.0001
+      "MAE": 0.1695,
+      "RMSE": 0.2374,
+      "R2": -20.8455
     },
     "OverallHealth": {
-      "MAE": 4.598,
-      "RMSE": 5.3533,
-      "R2": -0.2583
+      "MAE": 0.1664,
+      "RMSE": 0.2285,
+      "R2": -21.9246
     },
     "Thrust_N": {
-      "MAE": 43411.8825,
-      "RMSE": 53211.798,
-      "R2": -8.8871
+      "MAE": 80733.7943,
+      "RMSE": 210528.8956,
+      "R2": -153.767
     },
     "TSFC_g_N_s": {
-      "MAE": 0.0058,
-      "RMSE": 0.0075,
-      "R2": -0.5237
+      "MAE": 0.096,
+      "RMSE": 0.1095,
+      "R2": -322.627
     }
   },
   "physics_metrics": {
     "compliance_rate_pct": 98.45
   },
   "resource_benchmarks": {
-    "total_time_sec": 3.41,
-    "mean_latency_ms_per_sample": 0.089,
-    "throughput_samples_per_sec": 8797.9,
-    "peak_ram_mb": 245.4
+    "total_time_sec": 6.31,
+    "mean_latency_ms_per_sample": 0.2012,
+    "throughput_samples_per_sec": 4754.3,
+    "peak_ram_mb": 786.36
   }
 }

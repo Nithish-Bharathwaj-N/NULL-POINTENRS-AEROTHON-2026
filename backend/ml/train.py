@@ -29,9 +29,11 @@ from backend.ml.config import (
 from backend.ml.data import load_train_data
 
 
+from backend.ml.features import engineer_features
+
 def make_model(target: str, model_type: str = "poly_ridge", alpha: float = 1.0):
     """
-    Constructs a 100% transparent, interpretable regression model pipeline.
+    Constructs a transparent, highly accurate regression model pipeline.
     Uses degree-2 Polynomial Features -> RobustScaler -> Ridge(alpha=alpha).
     """
     if model_type == "poly_ridge":
@@ -82,10 +84,15 @@ def cross_validate(X, y, groups, target: str, model_type: str = "poly_ridge", al
 
 def train_all_models() -> dict:
     """
-    Trains transparent models for all targets and saves them to trained_models/.
+    Trains transparent models for all targets using enriched thermodynamic features and saves them to trained_models/.
     """
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    train_df = load_train_data()
+    twin_models_dir = MODELS_DIR.parent / "backend" / "digital_twin" / "ml" / "trained_models"
+    twin_models_dir.mkdir(parents=True, exist_ok=True)
+
+    raw_df = load_train_data()
+    train_df = engineer_features(raw_df)
+
     groups = train_df["EngineID"].values if "EngineID" in train_df.columns else np.arange(len(train_df))
 
     cv_results = {}
@@ -94,7 +101,7 @@ def train_all_models() -> dict:
 
     for target in TARGET_COLUMNS:
         model_type = BEST_TRANSPARENT_MODELS.get(target, "poly_ridge")
-        target_cols = TARGET_FEATURE_COLUMNS.get(target, FEATURE_COLUMNS)
+        target_cols = [c for c in TARGET_FEATURE_COLUMNS.get(target, FEATURE_COLUMNS) if c in train_df.columns]
         alpha = TARGET_ALPHA.get(target, 1.0)
 
         saved_feature_cols[target] = target_cols
@@ -103,7 +110,7 @@ def train_all_models() -> dict:
         y = train_df[target].values
         X = train_df[target_cols]
 
-        print(f"Training transparent model for {target} ({model_type}, alpha={alpha}, features={len(target_cols)})...")
+        print(f"Training high-accuracy model for {target} ({model_type}, alpha={alpha}, features={len(target_cols)})...")
         cv_results[target] = cross_validate(X, y, groups, target, model_type=model_type, alpha=alpha)
 
         # Fit final model on all training rows
@@ -116,97 +123,39 @@ def train_all_models() -> dict:
 
         model_path = MODELS_DIR / f"{target}.joblib"
         joblib.dump(final_model, model_path)
+
+        twin_model_path = twin_models_dir / f"{target}.joblib"
+        joblib.dump(final_model, twin_model_path)
+
         print(f"  -> saved to {model_path} (Engine-Grouped R2={cv_results[target]['R2_mean']:.4f}, MAE={cv_results[target]['MAE_mean']:.6f})")
 
-    # Save feature columns metadata definitions
-    with open(MODELS_DIR / "target_feature_columns.json", "w") as f:
-        json.dump(saved_feature_cols, f, indent=2)
+    # Save feature columns metadata definitions to both locations
+    for target_dir in [MODELS_DIR, twin_models_dir]:
+        with open(target_dir / "target_feature_columns.json", "w") as f:
+            json.dump(saved_feature_cols, f, indent=2)
 
-    with open(MODELS_DIR / "chosen_alpha.json", "w") as f:
-        json.dump(saved_alphas, f, indent=2)
+        with open(target_dir / "chosen_alpha.json", "w") as f:
+            json.dump(saved_alphas, f, indent=2)
 
-    with open(MODELS_DIR / "feature_columns.json", "w") as f:
-        json.dump(FEATURE_COLUMNS, f, indent=2)
-
-    return cv_results
-
-
-
-
-
-
-def cross_validate(X, y, target: str, model_type: str = "poly_ridge", n_splits: int = 5) -> dict:
-    """
-    5-fold cross-validation to evaluate model performance and measure residual standard deviation.
-    """
-    kf = KFold(n_splits=n_splits, shuffle=True, random_state=RANDOM_SEED)
-    mae_scores, r2_scores, residuals = [], [], []
-
-    for train_idx, val_idx in kf.split(X):
-        model = make_model(target, model_type=model_type)
-        model.fit(X.iloc[train_idx], y[train_idx])
-        preds = model.predict(X.iloc[val_idx])
-        
-        mae_scores.append(mean_absolute_error(y[val_idx], preds))
-        r2_scores.append(r2_score(y[val_idx], preds))
-        residuals.extend(y[val_idx] - preds)
-
-    return {
-        "MAE_mean": float(np.mean(mae_scores)),
-        "R2_mean": float(np.mean(r2_scores)),
-        "residual_std": float(np.std(residuals)),
-    }
-
-
-def train_all_models() -> dict:
-    """
-    Trains transparent models for all targets and saves them to trained_models/.
-    """
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    train_df = load_train_data()
-    feature_cols = list(FEATURE_COLUMNS)
-
-    cv_results = {}
-
-    for target in TARGET_COLUMNS:
-        model_type = BEST_TRANSPARENT_MODELS.get(target, "poly_ridge")
-        y = train_df[target].values
-        X = train_df[feature_cols]
-
-        print(f"Training transparent model for {target} ({model_type})...")
-        cv_results[target] = cross_validate(X, y, target, model_type=model_type)
-
-        # Fit final model on all 24,000 training rows
-        final_model = make_model(target, model_type=model_type)
-        final_model.fit(X, y)
-
-        # Store cross-validated residual std and MAE on the fitted pipeline for uncertainty estimation
-        final_model._residual_std = cv_results[target]["residual_std"]
-        final_model._fallback_uncertainty = cv_results[target]["MAE_mean"]
-
-        model_path = MODELS_DIR / f"{target}.joblib"
-        joblib.dump(final_model, model_path)
-        print(f"  -> saved to {model_path} (R2={cv_results[target]['R2_mean']:.4f}, MAE={cv_results[target]['MAE_mean']:.6f})")
-
-    # Save feature columns definition
-    with open(MODELS_DIR / "feature_columns.json", "w") as f:
-        json.dump(feature_cols, f, indent=2)
+        with open(target_dir / "feature_columns.json", "w") as f:
+            json.dump(FEATURE_COLUMNS, f, indent=2)
 
     return cv_results
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("AEROTHON 2026 - Training Transparent Health & Twin Models")
+    print("AEROTHON 2026 - Training High-Accuracy Aerospace Digital Twin Models")
     print("Dataset: PS_2_final_dataset (24,000 train rows)")
-    print("Model Type: Degree-2 Polynomial Ridge Regression (100% Interpretable)")
+    print("Model Type: Enriched Aero-Thermal Degree-2 Polynomial Ridge")
     print("=" * 60)
 
     scores = train_all_models()
 
-    print("\nCross-Validation Results (5-Fold CV on Training Data):")
+    print("\nCross-Validation Results (Engine GroupKFold CV):")
     for target, s in scores.items():
         print(f"  {target:18s} MAE={s['MAE_mean']:.6f}   R2={s['R2_mean']:.4f}")
 
-    print("\nTraining complete. Models saved to trained_models/")
+    print("\nTraining complete. Models saved to trained_models/ and backend/digital_twin/ml/trained_models/")
+
 

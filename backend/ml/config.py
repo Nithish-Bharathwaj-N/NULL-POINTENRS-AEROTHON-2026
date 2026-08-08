@@ -33,11 +33,11 @@ RAW_FEATURE_COLUMNS = [
     "P2_Pa", "T2_K", "P3_Pa", "T3_K", "P4_Pa", "T4_K",
 ]
 
-# Health targets correlate strongly with engine usage count (Cycle, r = -0.96)
-HEALTH_FEATURE_COLUMNS = RAW_FEATURE_COLUMNS + ["Cycle"]
+# Health targets correlate with raw sensors, thermodynamic station features, and engine usage (Cycle)
+HEALTH_FEATURE_COLUMNS = RAW_FEATURE_COLUMNS + ENGINEERED_COLUMNS + ["Cycle"]
 
-# Performance targets depend on flight condition and thermodynamic state
-PERFORMANCE_FEATURE_COLUMNS = RAW_FEATURE_COLUMNS
+# Performance targets depend on flight conditions and aero-thermal station features
+PERFORMANCE_FEATURE_COLUMNS = RAW_FEATURE_COLUMNS + ENGINEERED_COLUMNS
 
 # Target-specific feature maps
 TARGET_FEATURE_COLUMNS = {
@@ -50,14 +50,14 @@ TARGET_FEATURE_COLUMNS = {
 }
 
 # Total fallback feature set
-FEATURE_COLUMNS = RAW_FEATURE_COLUMNS + ["Cycle"]
+FEATURE_COLUMNS = RAW_FEATURE_COLUMNS + ENGINEERED_COLUMNS + ["Cycle"]
 
 # Per-target tuned Ridge regularization strength (alpha)
 TARGET_ALPHA = {
-    "CompressorHealth": 10.0,
+    "CompressorHealth": 1.0,
     "CombustorHealth": 1.0,
-    "TurbineHealth": 10.0,
-    "OverallHealth": 10.0,
+    "TurbineHealth": 1.0,
+    "OverallHealth": 1.0,
     "Thrust_N": 0.1,
     "TSFC_g_N_s": 0.1,
 }

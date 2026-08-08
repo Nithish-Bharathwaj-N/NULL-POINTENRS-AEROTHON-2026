@@ -15,6 +15,8 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
+from pathlib import Path
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -157,29 +159,35 @@ class HealthPredictor:
         self._shap_explainers = {}
 
     def _feature_columns_for_target(self, target: str) -> list:
-        if isinstance(self.feature_columns, dict):
+        target_map = getattr(self, "target_feature_columns", {})
+        if target in target_map:
+            return target_map[target]
+        if isinstance(self.feature_columns, dict) and target in self.feature_columns:
             return self.feature_columns[target]
-        return self.feature_columns
+        if target in self.models and hasattr(self.models[target], "feature_names_in_"):
+            return list(self.models[target].feature_names_in_)
+        return self.feature_columns if isinstance(self.feature_columns, list) else []
 
     def _prepare_input(self, df: pd.DataFrame, columns: list) -> pd.DataFrame:
-        prepared = df.copy()
-        if "EngineID" in columns and "EngineID" not in prepared:
-            prepared["EngineID"] = 0
-        if "Cycle" in columns and "Cycle" not in prepared:
-            prepared["Cycle"] = np.arange(len(prepared), dtype=float)
-        missing = [col for col in columns if col not in prepared]
-        if missing:
-            engineered = engineer_features(prepared)
-            for col in missing:
-                if col in engineered:
-                    prepared[col] = engineered[col]
-        return prepared[columns]
+        engineered = engineer_features(df)
+        if "Cycle" in df.columns and "Cycle" not in engineered.columns:
+            engineered["Cycle"] = df["Cycle"]
+        if "EngineID" in df.columns and "EngineID" not in engineered.columns:
+            engineered["EngineID"] = df["EngineID"]
+
+        for col in columns:
+            if col not in engineered.columns:
+                engineered[col] = 0.0
+
+        return engineered[columns]
 
     @classmethod
     def load(cls, models_dir=None) -> "HealthPredictor":
         """Load trained models from disk."""
-        models_dir = models_dir or MODELS_DIR
+        models_dir = Path(models_dir) if models_dir else MODELS_DIR
         feature_path = models_dir / "feature_columns.json"
+        target_feature_path = models_dir / "target_feature_columns.json"
+
         if not feature_path.exists():
             raise FileNotFoundError(
                 f"No trained models found in {models_dir}. Run "
@@ -189,12 +197,19 @@ class HealthPredictor:
         with open(feature_path) as f:
             feature_columns = json.load(f)
 
+        target_feature_columns = {}
+        if target_feature_path.exists():
+            with open(target_feature_path) as f:
+                target_feature_columns = json.load(f)
+
         models = {}
         for target in TARGET_COLUMNS:
             model_path = models_dir / f"{target}.joblib"
             models[target] = joblib.load(model_path)
 
-        return cls(models, feature_columns)
+        hp = cls(models, feature_columns)
+        hp.target_feature_columns = target_feature_columns
+        return hp
 
     def _shap_impacts_for_target(self, target: str, model, row: pd.DataFrame) -> list[dict]:
         """Compute feature impacts for target prediction."""

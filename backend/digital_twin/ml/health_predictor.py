@@ -132,13 +132,23 @@ class HealthPredictor:
 
     def predict(self, raw_telemetry: dict) -> dict:
         normalized = self.normalize_input(raw_telemetry)
+        df_raw = pd.DataFrame([normalized])
+        df_feat = engineer_features(df_raw)
 
         res = {}
-        for target in ["CompressorHealth", "CombustorHealth", "TurbineHealth", "OverallHealth", "Thrust_N", "TSFC_g_N_s"]:
-            pred = float(raw_telemetry.get(target, 0.999 if 'Health' in target else (58.6 if 'Thrust' in target else 0.681)))
-            if pred <= 1.0 and 'Health' in target:
-                pred = pred * 100.0
-            res[target] = {"prediction": pred, "uncertainty": 0.015}
+        for target in TARGET_COLUMNS:
+            if target in self.models:
+                target_cols = getattr(self, "target_feature_columns", {}).get(target, self.feature_columns)
+                target_cols = [c for c in target_cols if c in df_feat.columns]
+                X_in = df_feat[target_cols]
+                
+                pred_arr = self.models[target].predict(X_in)
+                pred_val = float(pred_arr[0])
+                res_std = float(getattr(self.models[target], "_residual_std", 0.015))
+                res[target] = {"prediction": pred_val, "uncertainty": res_std}
+            else:
+                fallback_val = 0.999 if 'Health' in target else (58.6 if 'Thrust' in target else 0.681)
+                res[target] = {"prediction": fallback_val, "uncertainty": 0.015}
 
         # Component predictions (0.0 to 1.0 scale mapped to 0-100%)
         comp_pred = res.get("CompressorHealth", {}).get("prediction", 0.999)
@@ -151,14 +161,13 @@ class HealthPredictor:
         turb_h = turb_pred * 100.0 if 0.0 < turb_pred <= 1.0 else (turb_pred if turb_pred > 1.0 else 99.9)
         ov_h   = ov_pred   * 100.0 if 0.0 < ov_pred   <= 1.0 else (ov_pred   if ov_pred   > 1.0 else 99.9)
 
-        comp_h = min(99.9, max(85.0, comp_h))
-        comb_h = min(99.9, max(85.0, comb_h))
-        turb_h = min(99.9, max(85.0, turb_h))
-        ov_h   = min(99.9, max(85.0, ov_h))
+        comp_h = min(99.9, max(50.0, comp_h))
+        comb_h = min(99.9, max(50.0, comb_h))
+        turb_h = min(99.9, max(50.0, turb_h))
+        ov_h   = min(99.9, max(50.0, ov_h))
 
         thrust = res.get("Thrust_N", {}).get("prediction", 58600.0)
         tsfc   = res.get("TSFC_g_N_s", {}).get("prediction", 0.681)
-
 
         return {
             "Compressor Health": round(comp_h, 2),

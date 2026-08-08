@@ -102,34 +102,63 @@ def main():
     predictions = {}
     if predictor and hasattr(predictor, "models"):
         # Normalize and engineer features for full dataframe at once
-        df_norm = pd.DataFrame()
-        
-        # Standard column mapping
-        df_norm["P2_Pa"] = df_raw["P2_Pa"] if "P2_Pa" in df_raw.columns else df_raw.get("Compressor Exit Pressure (P2)", 49.0) * 6894.76
-        df_norm["P3_Pa"] = df_raw["P3_Pa"] if "P3_Pa" in df_raw.columns else df_raw.get("Combustor Exit Pressure (P3)", 46.0) * 6894.76
-        df_norm["P4_Pa"] = df_raw["P4_Pa"] if "P4_Pa" in df_raw.columns else df_raw.get("Turbine Exit Pressure (P4)", 14.5) * 6894.76
-        df_norm["Pamb_Pa"] = df_raw["Pamb_Pa"] if "Pamb_Pa" in df_raw.columns else 101325.0
-        
-        df_norm["T2_K"] = df_raw["T2_K"] if "T2_K" in df_raw.columns else (df_raw.get("Compressor Exit Temperature (T2)", 233.0) + 273.15)
-        df_norm["T3_K"] = df_raw["T3_K"] if "T3_K" in df_raw.columns else (df_raw.get("Turbine Inlet Temperature (T3)", 1770.0) + 273.15)
-        df_norm["T4_K"] = df_raw["T4_K"] if "T4_K" in df_raw.columns else (df_raw.get("Turbine Exit Temperature (T4)", 1030.0) + 273.15)
-        df_norm["Tamb_K"] = df_raw["Tamb_K"] if "Tamb_K" in df_raw.columns else 288.15
-        
-        df_norm["RPM_rev_min"] = df_raw["RPM_rev_min"] if "RPM_rev_min" in df_raw.columns else df_raw.get("RPM", 12500.0)
-        df_norm["FuelFlow_kg_s"] = df_raw["FuelFlow_kg_s"] if "FuelFlow_kg_s" in df_raw.columns else df_raw.get("Fuel Flow", 3.45)
-        df_norm["Altitude_m"] = df_raw["Altitude_m"] if "Altitude_m" in df_raw.columns else 10000.0
-        df_norm["Mach"] = df_raw["Mach"] if "Mach" in df_raw.columns else 0.78
+        df_norm = df_raw.copy()
+
+        # Map flexible column names if standard names are missing
+        if "P2_Pa" not in df_norm.columns and "Compressor Exit Pressure (P2)" in df_norm.columns:
+            df_norm["P2_Pa"] = df_norm["Compressor Exit Pressure (P2)"] * 6894.76
+        if "P3_Pa" not in df_norm.columns and "Combustor Exit Pressure (P3)" in df_norm.columns:
+            df_norm["P3_Pa"] = df_norm["Combustor Exit Pressure (P3)"] * 6894.76
+        if "P4_Pa" not in df_norm.columns and "Turbine Exit Pressure (P4)" in df_norm.columns:
+            df_norm["P4_Pa"] = df_norm["Turbine Exit Pressure (P4)"] * 6894.76
+        if "Pamb_Pa" not in df_norm.columns:
+            df_norm["Pamb_Pa"] = 101325.0
+
+        if "T2_K" not in df_norm.columns and "Compressor Exit Temperature (T2)" in df_norm.columns:
+            df_norm["T2_K"] = df_norm["Compressor Exit Temperature (T2)"] + 273.15
+        if "T3_K" not in df_norm.columns and "Turbine Inlet Temperature (T3)" in df_norm.columns:
+            df_norm["T3_K"] = df_norm["Turbine Inlet Temperature (T3)"] + 273.15
+        if "T4_K" not in df_norm.columns and "Turbine Exit Temperature (T4)" in df_norm.columns:
+            df_norm["T4_K"] = df_norm["Turbine Exit Temperature (T4)"] + 273.15
+        if "Tamb_K" not in df_norm.columns:
+            df_norm["Tamb_K"] = 288.15
+
+        if "RPM_rev_min" not in df_norm.columns and "RPM" in df_norm.columns:
+            df_norm["RPM_rev_min"] = df_norm["RPM"]
+        if "FuelFlow_kg_s" not in df_norm.columns and "Fuel Flow" in df_norm.columns:
+            df_norm["FuelFlow_kg_s"] = df_norm["Fuel Flow"]
+
+        if "Altitude_m" not in df_norm.columns:
+            df_norm["Altitude_m"] = 10000.0
+        if "Mach" not in df_norm.columns:
+            df_norm["Mach"] = 0.78
 
         df_feat = engineer_features(df_norm)
-        X = df_feat[predictor.feature_columns]
 
         for target in TARGET_COLUMNS:
             if target in predictor.models:
-                preds_arr = predictor.models[target].predict(X)
-                # Scale if decimal health ratio
+                target_cols = getattr(predictor, "target_feature_columns", {}).get(target, predictor.feature_columns)
+                if isinstance(target_cols, dict):
+                    target_cols = target_cols.get(target, list(df_feat.columns))
+                
+                # Check for feature names expected by fitted model pipeline
+                model_obj = predictor.models[target]
+                if hasattr(model_obj, "feature_names_in_"):
+                    expected_cols = list(model_obj.feature_names_in_)
+                else:
+                    expected_cols = target_cols
+
+                for c in expected_cols:
+                    if c not in df_feat.columns:
+                        df_feat[c] = 0.0
+
+                X_target = df_feat[expected_cols]
+                preds_arr = predictor.models[target].predict(X_target)
+
+                # Keep decimal health scale (0.0 to 1.0)
                 if target in ["CompressorHealth", "CombustorHealth", "TurbineHealth", "OverallHealth"]:
-                    preds_arr = np.where(preds_arr <= 5.0, preds_arr * 100.0, preds_arr)
-                    preds_arr = np.clip(preds_arr, 50.0, 99.8)
+                    preds_arr = np.where(preds_arr > 5.0, preds_arr / 100.0, preds_arr)
+                    preds_arr = np.clip(preds_arr, 0.50, 1.0)
                 predictions[target] = preds_arr
     
     t_infer_end = time.perf_counter()
@@ -137,7 +166,7 @@ def main():
 
     # Physics Validation on Sample Frame
     sample_frame = df_raw.iloc[0].to_dict()
-    sample_pred = {k: predictions[k][0] if k in predictions else 99.0 for k in TARGET_COLUMNS}
+    sample_pred = {k: predictions[k][0] if k in predictions else 0.99 for k in TARGET_COLUMNS}
     v_res = PhysicsValidator.validate_telemetry_frame(sample_frame, sample_pred)
 
     t_end = time.perf_counter()
@@ -177,10 +206,10 @@ def main():
             y_true = df_raw[actual_col].values
             y_pred = predictions[target_key]
 
-            # Scale y_true if decimal ratio
+            # Standardize y_true to decimal ratio scale if health target
             if target_key in ["CompressorHealth", "CombustorHealth", "TurbineHealth", "OverallHealth"]:
-                if np.max(y_true) <= 5.0:
-                    y_true = y_true * 100.0
+                if np.max(y_true) > 5.0:
+                    y_true = y_true / 100.0
 
             valid_mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
             if np.sum(valid_mask) > 0:
