@@ -574,7 +574,7 @@ scene.background = new THREE.Color(0x060911);
 scene.fog = new THREE.FogExp2(0x060911, 0.035);
 
 const cam = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.05, 200);
-cam.position.set(-1.8, 0.5, 2.7); // High-detail close-up isometric perspective framing
+cam.position.set(-1.4, 0.35, 2.0); // Tight high-detail close-up framing
 
 
 const ren = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
@@ -1908,10 +1908,10 @@ function togglePartsDrawer() {
 
     if (E.PartsDrawerOpen) {
         orb.target.set(0, 0, 0);
-        cam.position.set(-1.8, 0.5, 2.7);
+        cam.position.set(-1.4, 0.35, 2.0);
     } else {
         orb.target.set(0, 0, 0);
-        cam.position.set(-1.8, 0.5, 2.7);
+        cam.position.set(-1.4, 0.35, 2.0);
         filterPartTab('ALL', document.querySelectorAll('.pd-tab')[0]);
     }
 }
@@ -1925,22 +1925,22 @@ function filterPartTab(tab, btnEl) {
     if (btnEl) btnEl.classList.add('active');
     filterParts(document.getElementById('pd-search-input')?.value || '');
 
-    // 3D Subsystem Focus & Camera Isolation (Close-up Stage Framing)
+    // 3D Subsystem Focus & Tight Camera Isolation (Close-up Front & Back Parts)
     if (tab === 'INTAKE') {
-        orb.target.set(-2.2, 0, 0);
-        cam.position.set(-2.2, 0.35, 2.1);
+        orb.target.set(-1.8, 0.1, 0);
+        cam.position.set(-1.8, 0.25, 1.25);
     } else if (tab === 'COMPRESSOR') {
-        orb.target.set(-0.7, 0, 0);
-        cam.position.set(-0.7, 0.35, 1.9);
+        orb.target.set(-0.6, 0.1, 0);
+        cam.position.set(-0.6, 0.25, 1.15);
     } else if (tab === 'COMBUSTOR') {
-        orb.target.set(+0.7, 0, 0);
-        cam.position.set(+0.7, 0.35, 1.9);
+        orb.target.set(+0.6, 0.1, 0);
+        cam.position.set(+0.6, 0.25, 1.15);
     } else if (tab === 'TURBINE' || tab === 'EXHAUST') {
-        orb.target.set(+2.2, 0, 0);
-        cam.position.set(+2.2, 0.35, 2.1);
+        orb.target.set(+1.8, 0.1, 0);
+        cam.position.set(+1.8, 0.25, 1.25);
     } else {
         orb.target.set(0, 0, 0);
-        cam.position.set(-1.8, 0.5, 2.7);
+        cam.position.set(-1.4, 0.35, 2.0);
     }
 
     allMeshes.forEach(m => {
